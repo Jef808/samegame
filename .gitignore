@@ -1,0 +1,12 @@
+# Executables
+*.out
+*.exe
+
+# VSCode
+*.vscode
+
+# local in/out files
+input.txt
+output.txt
+error.txt
+input_maker.py

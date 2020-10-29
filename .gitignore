@@ -1,12 +1,6 @@
-# Executables
-*.out
-*.exe
-
-# VSCode
-*.vscode
-
-# local in/out files
-input.txt
-output.txt
-error.txt
-input_maker.py
+/debug/
+/release/
+/scripts/
+/src/.idea/
+/tests/scripts/grid_tester.py
+/tests/scripts/

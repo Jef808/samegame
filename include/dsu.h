@@ -1,5 +1,5 @@
-#ifndef DSU_HPP
-#define DSU_HPP
+#ifndef __DSU_H_
+#define __DSU_H_
 
 #include <array>
 #include <vector>
@@ -8,9 +8,6 @@
 
 class DSU {
  public:
-  /**< Default constructor */
-  DSU ();
-
   std::array<int, NB_CELLS> parent;
   std::array<std::vector<int>, 225> groups;
 

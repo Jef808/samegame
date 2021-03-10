@@ -1,32 +1,33 @@
 #include <array>
 #include <iostream>
-#include <functional>
-#include <sstream>
+#include <deque>
+#include <string>
 #include <vector>
 #include "samegame.h"
 
-// Utility datastructure to make the clusters.
-// used to compute the valid actions from a state.
+//********************************************* Utilities ********************************/
+
+// Utility datastructure used to compute the valid actions from a state,
+// i.e. form the clusters.
 namespace DSU {
 
-template<size_t N>
-using ParentNdx = std::array<int, N>;
+typedef std::array<int, MAX_CELLS> ParentNdx;
 
-ParentNdx<MAX_CELLS> parent;
-ClusterList cl;
+constexpr ParentNdx DEFAULT_PN();
+
+ParentNdx parent;
+ClusterList clarr;
 
 void reset()
 {
-    parent { };
-
-    for (int v = 0; v < MAX_CELLS; ++v)
-        groups[v] = std::vector<int>(1, v);
+    parent = DEFAULT_PN();
+    clarr = ClusterList{ };
 }
 
 int find_rep(int ndx)
 {
     if (parent[ndx] == ndx)
-      return ndx;
+        return ndx;
 
     return parent[ndx] = find_rep(parent[ndx]);
 }
@@ -38,76 +39,39 @@ void unite(int a, int b)
 
     if (a != b)
     {
-        if (groups[a].size() < groups[b].size())
+        if (clarr[a].size < clarr[b].size)
             std::swap(a, b);
 
-        while (!groups[b].empty())
+        int last_b = clarr[b].size - 1;
+        int last_a = clarr[a].size - 1;
+
+        // Merge the (smaller) Cluster at b into the Cluster at a
+        while(last_b > 0)
         {
-            int v = groups[b].back();
-            groups[b].pop_back();
+            int v = clarr[b][last_b];
+
             parent[v] = a;
-            groups[a].push_back(v);
+            clarr[a][last_a] = v;
+
+            ++clarr[a].size;
+            --clarr[b].size;
         }
     }
 }
 
-struct default_parent {
-
-  default_parent()
-    : ret{ }
-  {
-    std::iota(ret.begin(), ret.end(), 0);
-  }
-  static constexpr ParentNdx<MAX_CELLS> operator() {
-    return ret;
-  }
-
-  ParentNdx<MAX_CELLS> ret;
-};
+constexpr ParentNdx DEFAULT_PN()
+{
+    ParentNdx pn { };
+    for (int i=0; i<MAX_CELLS; ++i)
+        pn[i] = i;
+    return pn;
+}
 
 } //namespace DSU
 
+//*************************************** Game logic **********************************/
 
-
-void samegame::init()
-{
-
-  DSU::parent.fill
-}
-
-Grid::Grid()
-    : cells { 0 }
-    , clr_counter { 0 }
-{
-    //ctor
-}
-
-Grid::Grid(std::istream& _in)
-    : cells { 0 }
-    , clr_counter { 0 }
-{
-    std::string row_buffer;
-    int clr_buffer { 0 };
-    for (int y = 0; y < HEIGHT; ++y) {
-        getline(_in, row_buffer);
-        std::istringstream ss(row_buffer);
-
-        for (int x = 0; x < WIDTH; ++x) {
-            ss >> clr_buffer;
-            cells[x + WIDTH * y] = ++clr_buffer;
-            ++clr_counter[clr_buffer];
-        }
-    }
-}
-
-void Grid::clear_group(const std::vector<int>& group)
-{
-    for (int ndx : group) {
-        cells[ndx] = 0;
-    }
-}
-
-void Grid::do_gravity()
+void State::pull_down()
 {
     // For all columns
     for (int i = 0; i < WIDTH; ++i) {
@@ -130,7 +94,7 @@ void Grid::do_gravity()
     }
 }
 
-void Grid::pull_columns()
+void State::pull_left()
 {
     int left_col = WIDTH * (HEIGHT - 1);
     // look for an empty column
@@ -152,29 +116,49 @@ void Grid::pull_columns()
     }
 }
 
-void Grid::render(bool labels) const
-{
-    for (int y = 0; y < HEIGHT; ++y) {
+//******************************* MAKING MOVES ***********************************/
 
+ClusterList& cluster_list()
+{
+
+}
+
+void State::kill_cluster(const Cluster& c)
+{
+    for (int i=0; i<c.size; ++i)
+    {
+        cells[i] = COLOR_NONE;
+    }
+}
+
+
+//*******************************  DEBUGGING  ***********************************/
+
+void State::display(std::ostream& _out, bool labels) const
+{
+    for (int y = 0; y < HEIGHT; ++y)
+    {
         if (labels) {
-            std::cout << HEIGHT - 1 - y << ((HEIGHT - 1 - y < 10) ? "  " : " ") << "| ";
+            _out << HEIGHT - 1 - y << ((HEIGHT - 1 - y < 10) ? "  " : " ") << "| ";
         }
 
         for (int x = 0; x < WIDTH - 1; ++x) {
-            std::cout << (int)cells[x + y * WIDTH] << ' ';
+            _out << (int)cells[x + y * WIDTH] << ' ';
         }
-        std::cout << (int)cells[WIDTH - 1 + y * WIDTH] << std::endl;
+
+        _out << (int)cells[WIDTH - 1 + y * WIDTH] << std::endl;
     }
 
-    if (labels) {
-        std::cout << std::string(34, '_') << std::endl;
+    if (labels)
+    {
+        _out << std::string(34, '_') << '\n';
 
         int x_labels[15] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14 };
-        std::cout << std::string(5, ' ');
+        _out << std::string(5, ' ');
         for (int x : x_labels) {
-            std::cout << x << ((x < 10) ? " " : "");
+            _out << x << ((x < 10) ? " " : "");
         }
 
-        std::cout << std::endl;
+        _out << std::endl;
     }
 }

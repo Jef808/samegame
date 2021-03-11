@@ -157,27 +157,31 @@ void State::pull_down()
 
 void State::pull_left()
 {
-    int left_col = WIDTH * (HEIGHT - 1);
-    // look for an empty column
-    while (left_col < MAX_CELLS && m_cells[left_col] != COLOR_NONE) {
-        ++left_col;
-    }
+    int i = 0;
+    std::deque<int> zero_cols {};
 
-    if (left_col == MAX_CELLS)
-        return;
-
-    // pull columns on the right to the empty column
-    int right_col = left_col + 1;
-    while (right_col < MAX_CELLS) {
-        // if the column is non-empty, swap all its colors with the empty column and move both pointers right
-        if (m_cells[right_col] != 0) {
-            for (int i = 0; i < HEIGHT; ++i) {
-                std::swap(m_cells[right_col - i * WIDTH], m_cells[left_col - i * WIDTH]);
-            }
-            ++left_col;
+    while (i < WIDTH - 1)
+    {
+        if (m_cells[i + (HEIGHT - 1) * WIDTH] == COLOR_NONE)
+        {
+            zero_cols.push_back(i);
         }
-        // otherwise move right pointer right
-        ++right_col;
+        else
+        {
+            // move right column into the empty left column
+            if (!zero_cols.empty())
+            {
+                auto x = zero_cols.front();
+                zero_cols.pop_front();
+
+                for (int j = 0; j < HEIGHT; ++j)
+                {
+                    m_cells[x + j * WIDTH] = m_cells[i + j *  WIDTH];
+                }
+            }
+        }
+
+        ++i;
     }
 }
 
@@ -306,27 +310,39 @@ std::ostream& _RED(std::ostream& _out) {
 
 void State::display(std::ostream& _out, Cell ndx, bool labels) const
 {
+    // For every row
     for (int y = 0; y < HEIGHT; ++y)
     {
         if (labels) {
             _out << HEIGHT - 1 - y << ((HEIGHT - 1 - y < 10) ? "  " : " ") << "| ";
         }
 
+        // Print row except last entry
         for (int x = 0; x < WIDTH - 1; ++x)
         {
+            // Check for colored entry
             if (x + y * WIDTH == ndx)
             {
                 _RED(_out) << (int)m_cells[x + y * WIDTH];
                 _DEFAULT(_out) << ' ';
             }
-            _out << (int)m_cells[x + y * WIDTH] << ' ';
+            else
+            {
+                _out << (int)m_cells[x + y * WIDTH] << ' ';
+            }
         }
+
+        // Print last entry,
+        // checking for colored entry
         if (WIDTH - 1 + y * WIDTH == ndx)
         {
             _RED(_out) << (int)m_cells[WIDTH - 1 + y * WIDTH];
             _DEFAULT(_out) << ' ';
         }
-        _out << (int)m_cells[WIDTH - 1 + y * WIDTH] << std::endl;
+        else
+        {
+            _out << (int)m_cells[WIDTH - 1 + y * WIDTH] << '\n';
+        }
     }
 
     if (labels)

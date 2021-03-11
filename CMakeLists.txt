@@ -16,11 +16,7 @@ set(TEST_DIR ${PROJECT_SOURCE_DIR}/tests)
 
 #add_subdirectory(${TEST_DIR})
 
-include_directories(. ${SRC_DIR} ${INC_DIR})
-
-#set(DATA
-#        ${DATA_DIR}/input.txt
-#        )
+#include_directories(. ${SRC_DIR} ${INC_DIR})
 
 set(samegame_src
   ${INC_DIR}/types.h
@@ -28,18 +24,16 @@ set(samegame_src
   ${INC_DIR}/samegame.h
   )
 
-#file(GLOB SOURCES
-#        ${SRC_DIR}/*.c
-#        ${SRC_DIR}/*.cpp
-#        )
+file(GLOB SOURCES
+  ${INC_DIR}/*.h
+  ${SRC_DIR}/*.cpp
+  )
+#list(FILTER SOURCES EXCLUDE REGEX ".*Agent*")
 #list(FILTER SOURCES EXCLUDE REGEX ".*main.cpp")
 
 add_library(sglib ${samegame_src})
-#target_include_directories(sglib PUBLIC ${SRC_DIR} ${INC_DIR})
+target_include_directories(sglib PUBLIC ${SRC_DIR} ${INC_DIR})
 
-set(main_src
-  ${PROJECT_SOURCE_DIR}/main.cpp ${samegame_src})
-
-add_executable(main ${main_src})
+add_executable(main main.cpp ${SOURCES})
 target_link_libraries(main sglib)
-target_include_directories(main PUBLIC ${DATA_DIR})
+target_include_directories(main PUBLIC ${SRC_DIR} ${INC_DIR} ${DATA_DIR})

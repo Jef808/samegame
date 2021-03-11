@@ -6,13 +6,14 @@
 #include <vector>
 #include <bits/stdint-uintn.h>
 
+
+namespace sg {
+
 auto constexpr HEIGHT    = 15;
 auto constexpr WIDTH     = 15;
 auto constexpr MAX_CELLS = HEIGHT * WIDTH;
 auto constexpr MAX_COLORS = 5;
 
-
-namespace sg {
 
 typedef uint8_t Cell;
 
@@ -27,5 +28,5 @@ typedef std::array<uint8_t, MAX_COLORS + 1> ColorsCounter;    // Counter remembe
 typedef uint8_t Action;
 typedef uint8_t Key;
 
-}
+} // namespace sg
 #endif

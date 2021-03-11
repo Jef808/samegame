@@ -1,6 +1,5 @@
 /debug/
 /release/
 /scripts/
-/src/.idea/
-/tests/scripts/grid_tester.py
-/tests/scripts/
+/tests/scripts/**
+/.cache

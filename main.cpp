@@ -43,17 +43,17 @@ int main(int argc, char *argv[])
 
     ClusterVec& clusters = state.cluster_list();
 
-    for (Cluster* c : clusters)
-    {
-        std::cout <<  "size " << c->size() << " { ";
-        auto it = c->begin();
-        while (it != c->end())// (auto i : *c)
-        {
-            std::cout << (int)(*it) << ' ';
-            ++it;
-        }
-        std::cout << " }" << std::endl;
-    }
+    // for (Cluster* c : clusters)
+    // {
+    //     std::cout <<  "size " << c->size() << " { ";
+    //     auto it = c->begin();
+    //     while (it != c->end())// (auto i : *c)
+    //     {
+    //         std::cout << (int)(*it) << ' ';
+    //         ++it;
+    //     }
+    //     std::cout << " }" << std::endl;
+    // }
 
     std::array<StateData, 128> sd;
     int ply = 1;

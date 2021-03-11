@@ -13,23 +13,22 @@
 
 namespace sg {
 
-//********************************************* Utilities ********************************/
+//********************************************* DSU UTILITY ********************************/
 
 // Utility datastructure used to compute the valid actions from a state,
 // i.e. form the clusters.
 namespace DSU {
 
-std::array<Cluster, MAX_CELLS> _Defaults;
-
 using repCluster = std::pair<Cell, Cluster>;
 typedef std::array<repCluster, MAX_CELLS> ClusterList;
 
+std::array<Cluster, MAX_CELLS> _Defaults;
 ClusterList cl;
 
 void reset()
 {
-    for (int i=0; i<MAX_CELLS; ++i)
-    {
+    for (int i=0; i<MAX_CELLS; ++i) {
+
         cl[i].second = _Defaults[i];
         cl[i].first  = i;
     }
@@ -38,8 +37,10 @@ void reset()
 Cell find_rep(Cell cell)
 {
     // Condition for cell to be a representative
-    if (cl[cell].first == cell)
+    if (cl[cell].first == cell) {
+
         return cell;
+    }
 
     return cl[cell].first = find_rep(cl[cell].first);
 }
@@ -49,15 +50,16 @@ void unite(Cell a, Cell b)
     a = find_rep(a);
     b = find_rep(b);
 
-    if (a != b)
-    {
-        // Make sure to move the smallest of the two clusters
-        if (cl[a].second.size() < cl[b].second.size())
+    if (a != b) {
+
+        if (cl[a].second.size() < cl[b].second.size()) {       // Make sure the cluster at b is the smallest one
+
             std::swap(a, b);
-        // Set the representative of b to the one of a
-        cl[b].first = cl[a].first;
-        // Merge the (smaller) Cluster at b into the Cluster at a
-        cl[a].second.splice(cl[a].second.end(), cl[b].second);
+        }
+
+        cl[b].first = cl[a].first;                             // Update the representative
+
+        cl[a].second.splice(cl[a].second.end(), cl[b].second); // Merge the cluster of b into that of a
     }
 }
 
@@ -68,17 +70,24 @@ void unite(Cell a, Cell b)
 
 namespace Zobrist {
 
-   std::array<Key, 19> ndx_keys { 0 };    // First entry = 0 for a trivial action
+
+    std::array<Key, 19> ndx_keys { 0 };    // First entry = 0 for a trivial action
 
     Key moveKey(Action action) {
+
        return ndx_keys[action];
     }
+
     Key colorKey(Color color) {
+
        return ndx_keys[color];
     }
+
     Key clustersKey(Cluster& cluster) {
+
        return 0;
     }
+
     Key terminalKey = 1;
 
 } // namespace Zobrist
@@ -88,8 +97,8 @@ namespace Zobrist {
 
 void State::init()
 {
-    for (auto i=0; i<MAX_CELLS; ++i)
-    {
+    for (auto i=0; i<MAX_CELLS; ++i) {
+
         DSU::_Defaults[i].push_back(i);
     }
 
@@ -98,8 +107,9 @@ void State::init()
          std::numeric_limits<std::uint64_t>::min(),
          std::numeric_limits<std::uint64_t>::max()
     );
-    for (int i=1; i<19; ++i)
-    {
+
+    for (int i=1; i<19; ++i) {
+
         Zobrist::ndx_keys[i] = ((dis(rd) >> 1) << 1);    // Reserve first bit for terminal.
     }
 }
@@ -112,6 +122,7 @@ State::State(std::istream& _in)
     int _in_color = 0;
 
     for (int i=0; i<HEIGHT; ++i) {
+
         for (int j=0; j<WIDTH; ++j) {
 
             _in >> _in_color;
@@ -199,36 +210,39 @@ ClusterVec& State::cluster_list()
 {
     DSU::reset();
 
-    // Traverse first row of grid and merge with same colors to the right
-    for (int i=0; i < WIDTH - 1; ++i)
-    {
+    // First row
+    for (int i=0; i < WIDTH - 1; ++i) {
+
+        // Compare right
         if (m_cells[i + 1] != 0 && m_cells[i + 1] == m_cells[i])
+
             DSU::unite(i + 1, i);
     }
 
-    // Traverse the rest of the rows
-    for (int i=WIDTH; i<MAX_CELLS; ++i)
-    {
-        // Merge with same colors above
+    // Other rows
+    for (int i=WIDTH; i<MAX_CELLS; ++i) {
+
+        // Compare up
         if (m_cells[i - WIDTH] != 0 && m_cells[i - WIDTH] == m_cells[i])
+
             DSU::unite(i - WIDTH, i);
 
-        // Merge with same colors to the right
+        // Compare right
         if ((i + 1) % WIDTH != 0 && m_cells[i + 1] != 0 && m_cells[i + 1] == m_cells[i])
+
             DSU::unite(i + 1, i);
     }
 
-    // Retrieve the non-trivial clusters in the list.
-    for (int i=0; i<MAX_CELLS; ++i)
-    {
+    // Store non-trivial clusters and count colors
+    for (int i=0; i<MAX_CELLS; ++i) {
+
         auto& cluster = DSU::cl[i].second;
-        if (cluster.size() > 1)
-        {
-            // Compute the color counter in passing
+
+        if (cluster.size() > 1) {
+
             auto color = m_cells[cluster.back()];
             m_colors[color] += cluster.size();
 
-            // Save the cluster.
             m_clusters.push_back(&cluster);
         }
     }
@@ -236,26 +250,17 @@ ClusterVec& State::cluster_list()
     return m_clusters;
 }
 
-// Cell get_repr(Cluster* cluster)
-// {
-//     assert (!cluster->empty());
-//     return cluster->front();
-// }
-
-// Action action_from_cell(Cell cell)
-// {
-//     return get_repr(find_cluster(cell));
-// }
-
 Cluster* State::find_cluster(Cell cell)
 {
     auto ret = std::find_if(m_clusters.begin(), m_clusters.end(),
-        [cell](auto* cluster) {
-            return std::find(cluster->begin(),
-                             cluster->end(),
-                             cell) != cluster->end();
-        });
+
+                        [cell](auto* cluster) {
+
+                    return std::find(cluster->begin(), cluster->end(), cell) != cluster->end();
+                });
+
     assert (ret != m_clusters.end());
+
     return *ret;
 }
 
@@ -269,27 +274,29 @@ std::pair<int, Color> State::kill_cluster(Cluster* cluster)
     int n_removed = 0;
     Color color = m_cells[cluster->front()];
 
-    if (cluster->size() > 1)
-    {
-        for (auto cell : *cluster)
-        {
+    if (cluster->size() > 1) {
+
+        for (auto cell : *cluster) {
+
             m_cells[cell] = COLOR_NONE;
             ++n_removed;
         }
     }
+
     return std::make_pair(n_removed, color);
 }
 
 void State::apply_action(Action action, StateData& sd)
 {
-    // Get the whole group to remove.
     auto* cluster = find_cluster(action);
+
     auto [sz, color] = kill_cluster(cluster);
-    // Update the state
+
+    // Update the state physically
     pull_down();
     pull_left();
 
-    // Update the StateData object with a new one
+    // Update the StateData objects
     sd.ply = m_ply + 1;
     sd.previous = data;
     data = &sd;
@@ -301,10 +308,15 @@ void State::apply_action(Action action, StateData& sd)
 
 //*******************************  DEBUGGING  ***********************************/
 
+
+int x_labels[15] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14 };
+
 std::ostream& _DEFAULT(std::ostream& _out) {
+
     return _out << "\033[0m";
 }
 std::ostream& _RED(std::ostream& _out) {
+
     return _out << "\033[32m";
 }
 
@@ -347,15 +359,16 @@ void State::display(std::ostream& _out, Cell ndx, bool labels) const
 
     if (labels)
     {
-        _out << std::string(34, '_') << '\n';
+        _out << std::string(34, '_') << '\n' << std::string(5, ' ');
 
-        int x_labels[15] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14 };
-        _out << std::string(5, ' ');
         for (int x : x_labels) {
+
             _out << x << ((x < 10) ? " " : "");
         }
 
         _out << std::endl;
     }
 }
+
+
 } //namespace sg

@@ -24,12 +24,8 @@ enum Color : uint8_t {
 typedef std::array<Color, MAX_CELLS>        Grid;
 typedef std::array<uint8_t, MAX_COLORS + 1> ColorsCounter;    // Counter remembering the colors distribution.
 
-
-
-namespace DSU {
-
-
-}
+typedef uint8_t Action;
+typedef uint8_t Key;
 
 }
 #endif

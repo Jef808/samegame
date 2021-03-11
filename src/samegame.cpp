@@ -1,7 +1,10 @@
+#include <algorithm>
 #include <array>
+#include <cassert>
 #include <iostream>
 #include <deque>
 #include <list>
+#include <random>
 #include <string>
 #include <sstream>
 #include <vector>
@@ -38,7 +41,6 @@ Cell find_rep(Cell cell)
     if (cl[cell].first == cell)
         return cell;
 
-
     return cl[cell].first = find_rep(cl[cell].first);
 }
 
@@ -49,31 +51,38 @@ void unite(Cell a, Cell b)
 
     if (a != b)
     {
+        // Make sure to move the smallest of the two clusters
         if (cl[a].second.size() < cl[b].second.size())
             std::swap(a, b);
-
-        // Set the representative of b to the one of a.
+        // Set the representative of b to the one of a
         cl[b].first = cl[a].first;
         // Merge the (smaller) Cluster at b into the Cluster at a
         cl[a].second.splice(cl[a].second.end(), cl[b].second);
-
-        // cl[a].second.sort();
-        // cl[b].second.sort();
-        // cl[a].second.merge(cl[b].second);
-        // while(!clusters[b].empty())
-        // {
-        //     Cell v = clusters[b].back();
-        //     clusters[b].pop_back();
-
-        //     parent[v] = a;
-        //     clusters[a].push_back(v);
-        // }
     }
 }
 
-
-
 } //namespace DSU
+
+
+//*******************************  ZOBRIST  ***********************************/
+
+namespace Zobrist {
+
+   std::array<Key, 19> ndx_keys { 0 };    // First entry = 0 for a trivial action
+
+    Key moveKey(Action action) {
+       return ndx_keys[action];
+    }
+    Key colorKey(Color color) {
+       return ndx_keys[color];
+    }
+    Key clustersKey(Cluster& cluster) {
+       return 0;
+    }
+    Key terminalKey = 1;
+
+} // namespace Zobrist
+
 
 //*************************************** Game logic **********************************/
 
@@ -82,6 +91,16 @@ void State::init()
     for (auto i=0; i<MAX_CELLS; ++i)
     {
         DSU::_Defaults[i].push_back(i);
+    }
+
+    std::random_device rd;
+    std::uniform_int_distribution<unsigned long long> dis(
+         std::numeric_limits<std::uint64_t>::min(),
+         std::numeric_limits<std::uint64_t>::max()
+    );
+    for (int i=1; i<19; ++i)
+    {
+        Zobrist::ndx_keys[i] = ((dis(rd) >> 1) << 1);    // Reserve first bit for terminal.
     }
 }
 
@@ -99,27 +118,39 @@ State::State(std::istream& _in)
             m_cells[j + i * WIDTH] = Color(_in_color + 1);
         }
     }
+
+    auto& clusters = cluster_list();
+    auto data = new StateData();
+    data->key = 0;     // TODO implement keys
+    data->ply = m_ply;
 }
 
 void State::pull_down()
 {
+
     // For all columns
     for (int i = 0; i < WIDTH; ++i) {
-        int bottom = i + WIDTH * (HEIGHT - 1);
-        // look for an empty cell
-        while (bottom > WIDTH - 1 && m_cells[bottom] != 0) {
-            bottom -= WIDTH;
-        }
-        // make non-empty m_cells above drop
-        int top = bottom - WIDTH;
-        while (top > -1) {
-            // if top is non-empty, swap its color with empty color and move both pointers up
-            if (m_cells[top] != 0) {
-                std::swap(m_cells[top], m_cells[bottom]);
-                bottom -= WIDTH;
+
+        // stack the non-zero colors going up
+        std::array<Color, HEIGHT> new_column { COLOR_NONE };
+        int new_height = 0;
+
+        for (int j = 0; j < HEIGHT; ++j)
+        {
+            auto bottom_color = m_cells[i + (HEIGHT - 1 - j) * WIDTH];
+
+            if (bottom_color != COLOR_NONE)
+            {
+                new_column[new_height] = bottom_color;
+                ++new_height;
             }
-            // otherwise move top pointer up
-            top -= WIDTH;
+        }
+        // pop back the value (including padding with 0)
+        for (int j = 0; j < HEIGHT; ++j)
+        {
+            {
+                m_cells[i + j * WIDTH] = new_column[HEIGHT - 1 - j];
+            }
         }
     }
 }
@@ -128,9 +159,13 @@ void State::pull_left()
 {
     int left_col = WIDTH * (HEIGHT - 1);
     // look for an empty column
-    while (left_col < MAX_CELLS && m_cells[left_col] != 0) {
+    while (left_col < MAX_CELLS && m_cells[left_col] != COLOR_NONE) {
         ++left_col;
     }
+
+    if (left_col == MAX_CELLS)
+        return;
+
     // pull columns on the right to the empty column
     int right_col = left_col + 1;
     while (right_col < MAX_CELLS) {
@@ -144,6 +179,14 @@ void State::pull_left()
         // otherwise move right pointer right
         ++right_col;
     }
+}
+
+bool State::is_terminal() const
+{
+    auto _beg = m_clusters.begin();
+    auto _end = m_clusters.end();
+
+    return std::none_of(_beg, _end, [](auto* cluster){ return cluster->size() > 1; });
 }
 
 //******************************* MAKING MOVES ***********************************/
@@ -171,30 +214,97 @@ ClusterVec& State::cluster_list()
             DSU::unite(i + 1, i);
     }
 
-    // Retrieve the non-empty clusters in the list.
+    // Retrieve the non-trivial clusters in the list.
     for (int i=0; i<MAX_CELLS; ++i)
     {
-        if (DSU::cl[i].second.size() > 0)
-            m_clusters.push_back(&DSU::cl[i].second);
-        // if (DSU::cl[i].first == i)
-        //     m_clusters.push_back(&DSU::cl[i].second);
+        auto& cluster = DSU::cl[i].second;
+        if (cluster.size() > 1)
+        {
+            // Compute the color counter in passing
+            auto color = m_cells[cluster.back()];
+            m_colors[color] += cluster.size();
+
+            // Save the cluster.
+            m_clusters.push_back(&cluster);
+        }
     }
 
     return m_clusters;
 }
 
-void State::kill_cluster(const Cluster& c)
+// Cell get_repr(Cluster* cluster)
+// {
+//     assert (!cluster->empty());
+//     return cluster->front();
+// }
+
+// Action action_from_cell(Cell cell)
+// {
+//     return get_repr(find_cluster(cell));
+// }
+
+Cluster* State::find_cluster(Cell cell)
 {
-    for (int i=0; i<c.size(); ++i)
-    {
-        m_cells[i] = COLOR_NONE;
-    }
+    auto ret = std::find_if(m_clusters.begin(), m_clusters.end(),
+        [cell](auto* cluster) {
+            return std::find(cluster->begin(),
+                             cluster->end(),
+                             cell) != cluster->end();
+        });
+    assert (ret != m_clusters.end());
+    return *ret;
 }
 
+// Remove the cells in the chosen cluster, return
+// the number of cells removed and their color.
+std::pair<int, Color> State::kill_cluster(Cluster* cluster)
+{
+    assert(cluster != nullptr);
+    assert(!cluster->empty());
+
+    int n_removed = 0;
+    Color color = m_cells[cluster->front()];
+
+    if (cluster->size() > 1)
+    {
+        for (auto cell : *cluster)
+        {
+            m_cells[cell] = COLOR_NONE;
+            ++n_removed;
+        }
+    }
+    return std::make_pair(n_removed, color);
+}
+
+void State::apply_action(Action action, StateData& sd)
+{
+    // Get the whole group to remove.
+    auto* cluster = find_cluster(action);
+    auto [sz, color] = kill_cluster(cluster);
+    // Update the state
+    pull_down();
+    pull_left();
+
+    // Update the StateData object with a new one
+    sd.ply = m_ply + 1;
+    sd.previous = data;
+    data = &sd;
+
+    // Make necessary computations and update the key.
+    ++m_ply;
+    m_colors[color] -= sz;
+}
 
 //*******************************  DEBUGGING  ***********************************/
 
-void State::display(std::ostream& _out, bool labels) const
+std::ostream& _DEFAULT(std::ostream& _out) {
+    return _out << "\033[0m";
+}
+std::ostream& _RED(std::ostream& _out) {
+    return _out << "\033[32m";
+}
+
+void State::display(std::ostream& _out, Cell ndx, bool labels) const
 {
     for (int y = 0; y < HEIGHT; ++y)
     {
@@ -202,10 +312,20 @@ void State::display(std::ostream& _out, bool labels) const
             _out << HEIGHT - 1 - y << ((HEIGHT - 1 - y < 10) ? "  " : " ") << "| ";
         }
 
-        for (int x = 0; x < WIDTH - 1; ++x) {
+        for (int x = 0; x < WIDTH - 1; ++x)
+        {
+            if (x + y * WIDTH == ndx)
+            {
+                _RED(_out) << (int)m_cells[x + y * WIDTH];
+                _DEFAULT(_out) << ' ';
+            }
             _out << (int)m_cells[x + y * WIDTH] << ' ';
         }
-
+        if (WIDTH - 1 + y * WIDTH == ndx)
+        {
+            _RED(_out) << (int)m_cells[WIDTH - 1 + y * WIDTH];
+            _DEFAULT(_out) << ' ';
+        }
         _out << (int)m_cells[WIDTH - 1 + y * WIDTH] << std::endl;
     }
 

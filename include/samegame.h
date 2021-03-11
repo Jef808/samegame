@@ -4,25 +4,21 @@
 #include <array>
 #include <vector>
 #include <cstdint>
+#include <deque>
 #include <istream>
+#include <memory>
 #include "types.h"
 
-struct Cluster {
-  std::array<int, MAX_CELLS> ndx;    // The indices of the cells in Samegame::Grid
-  int size;
-  bool empty();
-  Color color();
-  int& operator[](int i) { return ndx[i]; }
-};
 
-struct ClusterList {
-  Cluster& operator[](int i) { return cl[i]; }
-  std::array<Cluster, MAX_CELLS> cl;
-};
+namespace sg {
+
+typedef std::list<Cell> Cluster;     // Which data structure is best for this?
+typedef std::vector<Cluster*> ClusterVec;
 
 class State {
 public:
-  //static void init();
+  static void init();
+  State(std::istream& _in);
 
   // Game logic
   void pull_down();
@@ -31,17 +27,18 @@ public:
 
   // Making moves
   void kill_cluster(const Cluster&);
-  ClusterList& cluster_list();
+  ClusterVec& cluster_list();
 
   // Debug
   void display(std::ostream& _out, bool labels = false) const;
 
 private:
-  Grid          cells;
-  ColorsCounter colors;
-  ClusterList   clusters;
-  int           ply = 1;
+  Grid          m_cells;
+  ColorsCounter m_colors;
+  ClusterVec    m_clusters;
+  int           m_ply = 1;
 };
 
+} // namespace sg
 
 #endif

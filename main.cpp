@@ -1,8 +1,11 @@
 #include <cassert>
+#include <chrono>
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <thread>
 #include "types.h"
+#include "debug.h"
 #include "samegame.h"
 
 
@@ -30,6 +33,8 @@ struct CompRarestColor {
 
 };
 
+using namespace std::chrono_literals;
+
 int main(int argc, char *argv[])
 {
     State::init();
@@ -39,7 +44,7 @@ int main(int argc, char *argv[])
     State state { State(_if) };
     _if.close();
 
-    state.display(std::cout, 0, true);
+    Debug::display(std::cout, state, Cell(225), true);
 
     ClusterVec& clusters = state.cluster_list();
 
@@ -68,13 +73,18 @@ int main(int argc, char *argv[])
 
         Cell chosen = x + (14 - y) * WIDTH;
 
-        std::cout << "x=" << x << ", y=" << y;
-        std::cout << " Choosing " << (int)chosen << std::endl;
+        // std::cout << "x=" << x << ", y=" << y;
+        // std::cout << " Choosing " << (int)chosen << std::endl;
 
-        state.apply_action(chosen, sd[ply]);
+        Debug::display(std::cout, state, chosen, true);
+
+        state.apply_action(Action(chosen), sd[ply]);
         ++ply;
 
-        state.display(std::cout, chosen, true);
+        std::this_thread::sleep_for(1000ms);
+
+        Debug::display(std::cout, state, Cell(225), true);
+
     }
 
 

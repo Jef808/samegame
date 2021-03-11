@@ -1,5 +1,5 @@
 /debug/
 /release/
 /scripts/
-/tests/scripts/**
+/tests/**
 /.cache

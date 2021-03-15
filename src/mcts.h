@@ -1,141 +1,135 @@
+// mcts.h
 #ifndef __MCTS_H_
 #define __MCTS_H_
 
-#include <chrono>
 #include <unordered_map>
-#include <iostream>   // TODO move the debug stuff to a debug class and forward declare Agent there
-#include "types.h"
 #include "samegame.h"
+#include "types.h"
 
-namespace mcts {
-
-struct ActionNode;
-struct Node;
-
-// FIXME Why SearchStack keeps complaining but ActionNode and Node are fine???
-struct SearchStack {
-
-    sg::Action* pv;
-    sg::Action currentAction;
-    int ply;
-    Reward r;
-};
 
 // template<class Entry, int Size>
 // struct HashTable {
-//   Entry* operator[](sg::Key key) { return &table[(uint32_t)key & (Size - 1)]; }
+//   Entry* operator[](Key key) { return &table[(uint32_t)key & (Size - 1)]; }
 //   private:
 //  std::vector<Entry> table = std::vector<Entry>(Size);
 //    };
 
-// Holds the information known about the value of moves independantly from the
-// mcts tree structure. To be used for extra quick searches.
-//struct SearchStack;
+namespace mcts {
 
+struct Edge;
+struct Node;
+
+// Used to hold some information about actions independantly of the
+// mcts tree structure. Allows sampling playouts without creating nodes.
+struct SearchData {
+  int ply;
+  Action* pv;
+  sg::ClusterData cd;
+  Reward r;
+};
 
 class Agent {
 
 public:
-    using StateData = sg::StateData;
-    using State = sg::State;
-    using Action= sg::Action;
+  using State = sg::State;
+  using StateData = sg::StateData;
+  using ClusterData = sg::ClusterData;
 
-    Agent(State& state);
+  //static void init();
+  Agent(State& state);
 
-    Action MCTSBestAction();
+  ClusterData MCTSBestAction();
 
-    void create_root();
-    bool computation_resources();
-    Node* tree_policy();
-    Reward rollout_policy(Node* node);
-    void backpropagate(Node* node, Reward r);
+  void create_root();
+  bool computation_resources();
+  Node* tree_policy();
+  Reward rollout_policy(Node* node);    // TODO: If the playout hits a branch that clears the grid, return it from the whole algorithm.
+  void backpropagate(Node* node, Reward r);
 
-    ActionNode* best_uct(Node* node);
-    ActionNode* best_visits(Node* node);
-    ActionNode* best_avg_val(Node* node);
+  Reward ucb(Node* node, Edge& edge);
 
-    Node* current_node();
-    bool is_root(Node* root);
-    bool is_terminal(Node* node);
-    void apply_action(Action move);
-    void apply_action(Action move, StateData& sd);
-    void undo_action();
-    void undo_action(Action move);
-    void init_children();
+  Edge* best_ucb(Node* node);     // TODO : refactor into only one method taking a parameter
+  Edge* best_visits(Node* node);
+  Edge* best_avg_val(Node* node);
+  Edge* best_value_assured(Node* node);
 
-    Reward random_simulation(Action move);
-    Reward evaluate_terminal();
+  Node* current_node();
+  bool is_root(Node* root);
+  bool is_terminal(Node* node);
+  void apply_action(Action action);
+  void apply_action_blind(Action action);
+  void apply_action(Action action, StateData& sd);
+  void apply_action(const ClusterData& cd);
+  void undo_action();
+  void undo_action(const ClusterData& cd);
+  void init_children();
 
-    bool is_terminal(const StateData&);
-    Reward evaluate_terminal(const StateData&);
+  Reward random_simulation(const ClusterData& cd);
+  Reward sg_value(const ClusterData& cd);
+  Reward evaluate_terminal();
 
-    // Wether to backpropagate the minmax value of nodes or the rollout reward.
-    static void set_backpropagate_minimax(bool);
+  // Use MinMax to evaluate and backpropagate when it is a 2players game.
+  //const GameNbPlayers nb_players = GAME_1P;
 
-    // Debugging
-    void print_node(std::ostream&, Node*) const;
-    void print_tree(std::ostream&, int depth) const;
-    static void set_exp_c(double c);
-    static void set_max_time(int t);
-    static void set_max_iter(int i);
-    static inline bool debug_counters      = false;
-    static inline bool debug_main_methods  = false;
-    static inline bool debug_tree          = false;
-    static inline bool debug_best_visits   = false;
-    static inline bool debug_init_children = false;
-    static inline bool debug_random_sim    = false;
+  // Debugging
+  void print_node(std::ostream&, Node*) const;
+  void print_tree(std::ostream&, int depth) const;
+  static void set_exp_c(double c);
+  static void set_max_time(int t);
+  static void set_max_iter(int i);
+  void print_debug_cnts(std::ostream&) const;
 
 private:
-    State& state;
-    Node* root;
+  State& state;
+  Node* root;
 
-    int ply;
-    int iteration_cnt;
+  Reward value_global_max;
 
-    int rollout_cnt;
-    int descent_cnt;
-    int explored_nodes_cnt;
+  int ply;
+  int iteration_cnt;
+  int cnt_simulations;
+  int descent_cnt;
+  int explored_nodes_cnt;
+  int cnt_new_nodes;
 
-    // To keep track of nodes during the search (indexed by ply)
-    std::array<Node*, MAX_PLY>       nodes;       // The nodes.
-    std::array<ActionNode*, MAX_PLY> actions;     // The actions.
-    std::array<StateData, MAX_PLY>   states;      // Utility allowing state to do and undo actions.
-    std::array<SearchStack, MAX_PLY> stackBuf;  // Allows to perform independant without creading nodes.
+  // To keep track of the data during the search (indexed by ply)
+  // They are all 0-value initialized in the create_root() method
+  // NOTE It might be too much to store all of that on the stack...
+  std::array<Node*, MAX_PLY>        nodes;       // Elements are stored in the MCTSLookupTable
+  std::array<Edge*, MAX_PLY>        actions;     // Elements are stored in their parent node
+  std::array<StateData, MAX_PLY>    states;      // To keep history of states along a branch (stored on the heap)
+  std::array<SearchData, MAX_PLY>   stack;       // To perform the playout samplings without creating new nodes
 };
 
-struct ActionNode {
-    sg::Action          action;
-    int                 n_visits;
-    Reward              prior_value;
-    Reward              action_value;
-    double              avg_action_value;
-    bool                decisive;                // If it is a known win etc...
+struct Edge {
+  sg::ClusterData  cd;
+  int     value_sg_from_root;
+  int     n_visits;
+  Reward  value_assured;
+  Reward  reward_avg_visit;
+  bool    decisive;                              // If it is a known win etc...
 };
 
 struct Node {
-    // Careful when iterating through children, an ActionNode object doesn't have
-    // a 'zero' value (so may be initialized with random noise).
-    // NOTE: after the init_children() method, the children will be ordered by
-    // their à priori value `prior_value`.
-    using cont_children = std::array<ActionNode, MAX_CHILDREN>;
+  // NOTE: Careful when iterating through edges, an Edge object doesn't have
+  // a 'zero' value (so may be initialized with random noise).
+  // NOTE: after the init_children() method, the children will be ordered by
+  // their à priori value `prior_value`.
+  using Edges = std::array<Edge, MAX_CHILDREN>;
 
-    Key                 key                              = 0;           // Zobrist Hash of the state
-    int                 n_visits                         = 0;
-    int                 n_children                       = 0;
-    int                 n_expanded_children              = 0;
-    sg::Action          last_action                      = sg::ACTION_NONE;
-    bool                best_known;
-    cont_children       children;
+  Key      key;
+  int      n_visits;
+  int      n_children;
+  int      n_expanded_children;
+  Edge*    parent;
+  Edges    children;
 
-    cont_children& children_list() { return children; }
+  Edges& children_list() { return children; }
 };
 
-inline bool operator==(const Node& a, const Node& b)
-{
-    return a.key == b.key;
+inline bool operator==(const Node& a, const Node& b) {
+  return a.key == b.key;
 }
-
-
 
 
 typedef std::unordered_map<Key, Node> MCTSLookupTable;

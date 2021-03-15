@@ -1,92 +1,83 @@
-#include <cassert>
-#include <chrono>
+// main.cpp
 #include <iostream>
 #include <fstream>
-#include <string>
 #include <thread>
-#include "types.h"
+#include <sstream>
 #include "debug.h"
 #include "samegame.h"
+#include "mcts.h"
 
 
 using namespace std;
+using namespace literals::chrono_literals;
 using namespace sg;
+using namespace mcts;
 
-
-bool CompBiggestSize(const Cluster* a, const Cluster* b)
-{
-    return a->size() > b->size();
-}
-
-struct CompRarestColor {
-    CompRarestColor(const State& state)
-        : cc(state.m_colors)
-        , g(state.m_cells)
-    {
-    }
-    ColorsCounter cc;
-    Grid         g;
-
-    bool operator()(const Cluster* a, const Cluster* b) {
-        return cc[g[a->front()]] < cc[g[b->front()]];
-    }
-
-};
-
-using namespace std::chrono_literals;
 
 int main(int argc, char *argv[])
 {
     State::init();
+    StateData sd_root = {};
 
-    std::ifstream _if;
+    ifstream _if;
     _if.open("../data/input.txt", ios::in);
-    State state { State(_if) };
+    State state { State(_if, &sd_root) };
     _if.close();
 
-    Debug::display(std::cout, state, Cell(225), true);
+    Debug::mcts::set_debug_init_children(true);
+    Debug::mcts::set_debug_counters(true);
+    Debug::mcts::set_debug_final_scores(true);
+    Debug::mcts::set_debug_tree(true);
+    Debug::mcts::set_debug_main_methods(true);
 
-    ClusterVec& clusters = state.cluster_list();
+    Agent agent(state);
 
-    // for (Cluster* c : clusters)
+    cout << (int)state.key();
+
+    ClusterData cd = agent.MCTSBestAction();
+
+    agent.print_debug_cnts(cout);
+    // string buf;
+
+    //while (!state.is_terminal())
     // {
-    //     std::cout <<  "size " << c->size() << " { ";
-    //     auto it = c->begin();
-    //     while (it != c->end())// (auto i : *c)
+    //     while (Cell(action) > MAX_CELLS - 1 || state.cells()[Cell(action)] == COLOR_NONE)
     //     {
-    //         std::cout << (int)(*it) << ' ';
-    //         ++it;
+    //         stringstream ss;
+    //         int x, y;
+    //         buf.clear();
+
+    //         cout << "Choose a cell (row column) to play a move, or U to undo a move.\n" << endl;
+    //         Debug::display(cout, state);
+
+    //         getline(cin, buf);
+
+    //         if (buf[0] == 'U') {
+    //             state.undo_action(action);
+    //         }
+    //         else {
+    //             ss << buf;
+    //             ss >> x >> y ;
+    //             action = Action(x + (14 - y) * WIDTH);
+    //         }
     //     }
-    //     std::cout << " }" << std::endl;
+
+    //     Cluster* cluster = state.get_cluster(Cell(action));
+    //     cout << "Chosen cluster: " << endl;
+    //     Debug::display(cout, state, Cell(action), cluster);
+
+    //     cout << "Effect of apply_action_blind: " << endl;
+    //     agent.apply_action_blind(action);
+
+    //     //this_thread::sleep_for(500ms);
+
+    //     //agent.apply_action(action);
+
+    //     action = ACTION_NONE;
     // }
 
-    std::array<StateData, 128> sd;
-    int ply = 1;
-    int x, y;
-    sd[ply].ply = ply;
-    sd[ply].key = 0;    //TODO fix
-
-    while (!state.is_terminal())
-    {
-        std::cout << "Choose a move (column row)" << endl;
-        std::cin >> x >> y; std::cin.ignore();
-
-        Cell chosen = x + (14 - y) * WIDTH;
-
-        // std::cout << "x=" << x << ", y=" << y;
-        // std::cout << " Choosing " << (int)chosen << std::endl;
-
-        Debug::display(std::cout, state, chosen, true);
-
-        state.apply_action(Action(chosen), sd[ply]);
-        ++ply;
-
-        std::this_thread::sleep_for(1000ms);
-
-        Debug::display(std::cout, state, Cell(225), true);
-
-    }
-
+    Debug::display(cout, state);
+    cout << "Game over!" << endl;
 
     return 0;
 }

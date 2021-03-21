@@ -1,0 +1,32 @@
+[
+{
+  "directory": "/home/jfa/code/projects/samegame/build",
+  "command": "/usr/bin/g++    -Wall -g -std=gnu++2a -o CMakeFiles/debuglib.dir/src/debug.cpp.o -c /home/jfa/code/projects/samegame/src/debug.cpp",
+  "file": "/home/jfa/code/projects/samegame/src/debug.cpp"
+},
+{
+  "directory": "/home/jfa/code/projects/samegame/build",
+  "command": "/usr/bin/g++  -I/home/jfa/code/projects/samegame/src -I/home/jfa/code/projects/samegame/include  -Wall -g -std=gnu++2a -o CMakeFiles/sglib.dir/src/samegame.cpp.o -c /home/jfa/code/projects/samegame/src/samegame.cpp",
+  "file": "/home/jfa/code/projects/samegame/src/samegame.cpp"
+},
+{
+  "directory": "/home/jfa/code/projects/samegame/build",
+  "command": "/usr/bin/g++  -I/home/jfa/code/projects/samegame/src -I/home/jfa/code/projects/samegame/include -I/home/jfa/code/projects/samegame/data  -Wall -g -std=gnu++2a -o CMakeFiles/main.dir/main.cpp.o -c /home/jfa/code/projects/samegame/main.cpp",
+  "file": "/home/jfa/code/projects/samegame/main.cpp"
+},
+{
+  "directory": "/home/jfa/code/projects/samegame/build",
+  "command": "/usr/bin/g++  -I/home/jfa/code/projects/samegame/src -I/home/jfa/code/projects/samegame/include -I/home/jfa/code/projects/samegame/data  -Wall -g -std=gnu++2a -o CMakeFiles/main.dir/src/debug.cpp.o -c /home/jfa/code/projects/samegame/src/debug.cpp",
+  "file": "/home/jfa/code/projects/samegame/src/debug.cpp"
+},
+{
+  "directory": "/home/jfa/code/projects/samegame/build",
+  "command": "/usr/bin/g++  -I/home/jfa/code/projects/samegame/src -I/home/jfa/code/projects/samegame/include -I/home/jfa/code/projects/samegame/data  -Wall -g -std=gnu++2a -o CMakeFiles/main.dir/src/mcts.cpp.o -c /home/jfa/code/projects/samegame/src/mcts.cpp",
+  "file": "/home/jfa/code/projects/samegame/src/mcts.cpp"
+},
+{
+  "directory": "/home/jfa/code/projects/samegame/build",
+  "command": "/usr/bin/g++  -I/home/jfa/code/projects/samegame/src -I/home/jfa/code/projects/samegame/include -I/home/jfa/code/projects/samegame/data  -Wall -g -std=gnu++2a -o CMakeFiles/main.dir/src/samegame.cpp.o -c /home/jfa/code/projects/samegame/src/samegame.cpp",
+  "file": "/home/jfa/code/projects/samegame/src/samegame.cpp"
+}
+]

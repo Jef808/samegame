@@ -9,12 +9,14 @@
 #include <iostream>
 #include <functional>
 #include <list>
+#include <map>
 #include <random>
 #include <sstream>
 #include <string>
 #include <vector>
+#include <spdlog/spdlog.h>
 #include "samegame.h"
-#include "debug.h"
+//#include "debug.h"
 
 
 namespace sg {
@@ -106,7 +108,10 @@ Key State::generate_key() const
     for (const auto& cluster : r_clusters)
     {
         if (cluster.members.size() > 1)
+        {
+            //auto rep = *std::min_element(begin(cluster.members), end(cluster.members));
             key ^= Zobrist::clusterKey({cluster.rep, p_data->cells[cluster.rep]});
+        }
     }
 
     //key ^= Zobrist::rarestColorKey(*this);
@@ -117,12 +122,15 @@ Key State::generate_key() const
 
 Key State::key() const
 {
+    if (p_data->key == 0)
+        generate_key();
     return p_data->key;
 }
 
 //*************************************** Game logic **********************************/
 
-void State::init()
+void State::
+init()
 {
     std::random_device rd;
     std::uniform_int_distribution<unsigned long long> dis(
@@ -237,6 +245,10 @@ bool State::is_empty() const
 // TODO start from bottom left corner and try to stop early when most of the grid is empty.
 void State::generate_clusters() const
 {
+    // if (!need_refresh_clusters) {
+    //     spdlog::debug("Unnecessary gen_clusters call");
+    //     return;
+    // }
     DSU::reset();
     Grid& m_cells = p_data->cells;
     // First row
@@ -258,6 +270,18 @@ void State::generate_clusters() const
         if ((i + 1) % WIDTH != 0 && m_cells[i + 1] == m_cells[i])
             DSU::unite(i + 1, i);
     }
+
+    // Always consider the the smallest representative for a given cluster
+    // to get a bijection (we want to use them to generate keys)
+    for (auto& cluster : DSU::cl)
+    {
+        if (cluster.members.size() > 1) {
+            cluster.rep = *std::min_element(cluster.members.begin(), cluster.members.end());
+        }
+    }
+
+    need_refresh_clusters = false;
+
     // NOTE instead of the following, we now store a ref to DSU::cl and will filter out the trivial
     //      clusters in the call to valid_actions()
     //
@@ -283,12 +307,56 @@ void State::init_ccounter()
 
 Cluster* State::get_cluster(Cell cell) const
 {
-    return &r_clusters[DSU::find_rep(cell)];
+    generate_clusters();
+
+    if (cell == MAX_CELLS || p_data->cells[cell] == 0)
+        return nullptr;
+
+    auto it = std::find_if(DSU::cl.begin(), DSU::cl.end(), [c = cell](const auto& cluster) {
+        return cluster.members.size() > 1 && cluster.rep == c;
+    });
+
+    if (it != DSU::cl.end()) {
+        return &(*it);
+    } else {
+
+        auto it2 = std::find_if(DSU::cl.begin(), DSU::cl.end(), [c = cell](const auto& cluster) {
+            return cluster.members.size() > 1 && std::find(begin(cluster.members), end(cluster.members), c) != end(cluster.members);
+        });
+
+        if (it2 != DSU::cl.end())
+        {
+            std::cerr << "Bug with clusters and their representatives (see get_cluster)" << std::endl;
+            generate_clusters();
+            auto it3 = std::find_if(DSU::cl.begin(), DSU::cl.end(), [c = cell](const auto& cluster) {
+                return cluster.members.size() > 1 && std::find(begin(cluster.members), end(cluster.members), c) != end(cluster.members);
+            });
+
+            if (it3 == DSU::cl.end())
+            {
+                std::cerr << "double bug with the clusters!" << std::endl;
+            }
+            return &(*it3);
+        }
+        else
+        {
+            return nullptr;
+        }
+
+
+    }
 }
 
 // Remove the cells in the chosen cluster and adjusts the colors counter.
 void State::kill_cluster(Cluster* cluster)
 {
+    if (cluster == nullptr)
+    {
+        auto logger = spdlog::get("m_logger");
+        //logger->set_level(spdlog::level::trace);
+        logger->trace("kill_cluster called with nullptr. Current state is {}", State_Action({*this}).display());
+    }
+
     assert(cluster != nullptr);
     assert(cluster->members.size() > 1);    // NOTE: if cluster is 0 initialized this doesn't check anything
 
@@ -326,18 +394,20 @@ void State::kill_cluster(Cluster* cluster)
 // NOTE: Can return empty vector
 ActionDVec State::valid_actions_data() const
 {
+    generate_clusters();
+
     ActionDVec ret { };
-    if (r_clusters.empty())
-        return ret;
+    // if (r_clusters.empty())
+    //     return ret;
     for (const auto& cluster : r_clusters) {
         uint8_t size = cluster.members.size();
         if (size > 1)
         {
+            //Cell rep = *std::min_element(cluster.members.begin(), cluster.members.end());
             ClusterData cd = { cluster.rep, cells()[cluster.rep], size };
             ret.push_back(cd);
         }
     }
-
     return ret;
 }
 
@@ -412,7 +482,7 @@ void State::apply_action(const ClusterData& cd, StateData& sd)
     // Update the grid in the new StateData object
     // FIXME I hate doing this but for now I need to recalculate the cluster
     //
-    generate_clusters();
+    //generate_clusters();    // There is a call to generate_clusters at start of kill_cluster
 
     kill_cluster(get_cluster(cd.rep));     // The color counter is decremented here
     pull_cells_down();
@@ -487,7 +557,7 @@ void State::undo_action(Action action)
     p_data = p_data->previous;
 
     // Use the action to reincrement the color counter
-    auto& cluster_cells = get_cluster(action)->members;
+    auto cluster_cells = get_cluster(action)->members;
     Color color = p_data->cells[cluster_cells.back()];
     colors[color] += cluster_cells.size();
 }
@@ -501,5 +571,205 @@ void State::undo_action(const ClusterData& cd)
     colors[cd.color] += cd.size;
 }
 
+
+//*************************** DEBUG *************************/
+
+using namespace std;
+
+namespace display {
+
+enum class Color_codes : int {
+    BLACK     = 30,
+    RED       = 31,
+    GREEN     = 32,
+    YELLOW    = 33,
+    BLUE      = 34,
+    MAGENTA   = 35,
+    // CYAN      = 36,
+    // WHITE     = 37,
+    // B_BLACK   = 90,
+    // B_RED     = 91,
+    // B_GREEN   = 92,
+    // B_YELLOW  = 93,
+    // B_BLUE    = 94,
+    // B_MAGENTA = 95,
+    // B_CYAN    = 96,
+    // B_WHITE   = 97,
+};
+
+enum class Shape : int {
+    SQUARE,
+    DIAMOND,
+    B_DIAMOND,
+    NONE
+};
+
+// enum class Output {
+//     CONSOLE,
+//     FILE
+// };
+
+map<Shape, string> Shape_codes {
+    {Shape::SQUARE,    "\u25A0"},
+    {Shape::DIAMOND,   "\u25C6"},
+    {Shape::B_DIAMOND, "\u25C7"},
+};
+
+string shape_unicode(Shape s)
+{
+    return Shape_codes[s];
+}
+
+string color_unicode(Color c)
+{
+    return to_string((int)Color_codes(c + 30));
+}
+
+string print_cell(const sg::Grid& grid, Cell ndx, Output output_mode, Cell action_rep = MAX_CELLS, const vector<Cell>& cluster_vec = vector<Cell>())
+{
+    bool ndx_in_cluster = find(cluster_vec.begin(), cluster_vec.end(), ndx) != cluster_vec.end();
+    stringstream ss;
+
+    if (output_mode == Output::CONSOLE)
+    {
+        Shape shape = ndx == action_rep ? Shape::B_DIAMOND :
+            ndx_in_cluster ? Shape::DIAMOND : Shape::SQUARE;
+
+        ss << "\033[1;" << color_unicode(grid[ndx]) << "m" << shape_unicode(shape) << "\033[0m";
+
+        return ss.str();
+    }
+    else
+    {
+        // Underline the cluster representative and output the cluster in bold
+        string formatter = "";
+        if (ndx_in_cluster)
+            formatter += "\e[1m]";
+        if (ndx == action_rep)
+            formatter += "\033[4m]";
+
+        ss << formatter << to_string(grid[ndx]) << "\033[0m\e[0m";
+
+        return ss.str();
+    }
+}
+
+int x_labels[15] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14 };
+
+} // namespace display
+
+//****************************** PRINTING BOARDS ************************/
+
+
+string State_Action::display(sg::Output output_mode) const
+{
+    bool labels = true;
+
+    const auto& grid = state.p_data->cells;
+
+    std::vector<Cell> cluster_vec;
+    if (p_cluster != nullptr) {
+        for (auto c : p_cluster->members) {
+            cluster_vec.push_back(c);
+        }
+    }
+
+    stringstream ss {"\n"};
+
+    // For every row
+    for (int y = 0; y < HEIGHT; ++y) {
+        if (labels) {
+            ss << HEIGHT - 1 - y << ((HEIGHT - 1 - y < 10) ? "  " : " ") << "| ";
+        }
+        // Print row except last entry
+        for (int x = 0; x < WIDTH - 1; ++x) {
+            ss << display::print_cell(grid, Cell(x + y * WIDTH), output_mode, actionrep, cluster_vec) << ' ';
+        }
+        // Print last entry,
+        ss << display::print_cell(grid, Cell(WIDTH - 1 + y * WIDTH), output_mode, actionrep, cluster_vec) << '\n';
+    }
+
+    if (labels) {
+        ss << std::string(34, '_') << '\n'
+             << std::string(5, ' ');
+
+        for (int x : display::x_labels) {
+
+            ss << x << ((x < 10) ? " " : "");
+        }
+        ss << '\n';
+    }
+
+    return ss.str();
+}
+
+
+
+// template<>
+// spdlog::sinks::sink& operator<<(spdlog::sinks::sink& sink, const State_Action& state_action)
+// {
+//     if (sink.)
+//     return _out << display(state_action, Output::CONSOLE);
+//     //return _out;
+// }
+
+// template<typename OStream>
+// OStream& operator<<(OStream& _out, const string& s)
+// {
+//     return _out << s;
+//     //return _out;
+// }
+
+ostream& operator<<(ostream& _out, const State_Action& state_action)
+{
+    return _out << state_action.display(Output::CONSOLE);
+
+}
+
+ostream& operator<<(ostream& _out, const State& state)
+{
+    return _out << State_Action({state}).display(Output::CONSOLE);
+}
+
+// template<>
+// ofstream& operator<< <ofstream>(ofstream& _out, const State& state)
+// {
+//     return _out << display({state}, Output::FILE);
+// }
+
+// template<>
+// ostream& operator<< <std::ostream>(std::ostream& _out, const State_Action& state_action)
+// {
+//     _out << display(state_action, Output::CONSOLE);
+//     return _out;
+// }
+
+// template<>
+// ofstream& operator<< <std::ofstream>(std::ofstream& _out, const State_Action& state_action)
+// {
+//     _out << display(state_action, Output::FILE);
+
+
+// }
+
+// template<typename OStream>
+// OStream& operator<<(OStream& _out, const State& state)
+// {
+//     return _out << display({state}, Output::FILE);
+// }
+
+// template<>
+// std::ostream& operator<< <std::ostream>(std::ostream& _out, const State& state)
+// {
+//     _out << display({state}, Output::CONSOLE);
+//     return _out;
+// }
+
+// template<>
+// std::ostream& operator<< <std::ostream>(std::ostream& _out, const State_Action& state_action)
+// {
+//     _out << display(state_action, Output::FILE);
+//     return _out;
+// }
 
 } //namespace sg

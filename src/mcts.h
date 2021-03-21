@@ -3,6 +3,8 @@
 #define __MCTS_H_
 
 #include <unordered_map>
+#include <sstream>
+#include <iosfwd>
 #include "samegame.h"
 #include "types.h"
 
@@ -22,10 +24,12 @@ struct Node;
 // Used to hold some information about actions independantly of the
 // mcts tree structure. Allows sampling playouts without creating nodes.
 struct SearchData {
-  int ply;
-  Action* pv;
+  int             ply;
+  Action*         pv;
   sg::ClusterData cd;
-  Reward r;
+  Reward          r;
+  int             sibling_rank;
+  int             parent_id;
 };
 
 class Agent {
@@ -63,34 +67,45 @@ public:
   void undo_action();
   void undo_action(const ClusterData& cd);
   void init_children();
+  Node* get_node();
+  int get_ply() const;
 
   Reward random_simulation(const ClusterData& cd);
   Reward sg_value(const ClusterData& cd);
   Reward evaluate_terminal();
+  Reward value_to_reward(double);
+  double reward_to_value(Reward);
+
+  std::vector<Action> get_edges_from_root() const;
 
   // Use MinMax to evaluate and backpropagate when it is a 2players game.
   //const GameNbPlayers nb_players = GAME_1P;
 
-  // Debugging
-  void print_node(std::ostream&, Node*) const;
-  void print_tree(std::ostream&, int depth) const;
+  // Options
   static void set_exp_c(double c);
   static void set_max_time(int t);
   static void set_max_iter(int i);
-  void print_debug_cnts(std::ostream&) const;
 
-private:
-  State& state;
-  Node* root;
+  // Debugging
+  void print_node(std::ostream&, Node*) const;
+  void print_tree(std::ostream&, int depth) const;
 
-  Reward value_global_max;
+  friend std::ostream& operator<<(std::ostream&, const Agent&);
+  std::string debug_tree_stats() const;
+  void print_final_score() const;
 
-  int ply;
   int iteration_cnt;
   int cnt_simulations;
   int descent_cnt;
   int explored_nodes_cnt;
   int cnt_new_nodes;
+
+
+  State& state;
+  Node* root;
+
+  double value_global_max;
+  double value_global_min;
 
   // To keep track of the data during the search (indexed by ply)
   // They are all 0-value initialized in the create_root() method
@@ -99,6 +114,8 @@ private:
   std::array<Edge*, MAX_PLY>        actions;     // Elements are stored in their parent node
   std::array<StateData, MAX_PLY>    states;      // To keep history of states along a branch (stored on the heap)
   std::array<SearchData, MAX_PLY>   stack;       // To perform the playout samplings without creating new nodes
+private:
+  int ply;
 };
 
 struct Edge {
@@ -127,10 +144,17 @@ struct Node {
   Edges& children_list() { return children; }
 };
 
+inline bool operator==(const Edge& a, const Edge& b) {
+  return a.cd == b.cd && a.value_assured == b.value_assured;
+}
+
 inline bool operator==(const Node& a, const Node& b) {
   return a.key == b.key;
 }
 
+extern std::ostream& operator<<(std::ostream& _out, const mcts::Agent& agent);
+extern std::ostream& operator<<(std::ostream& _out, const mcts::Edge& edge);
+extern std::ostream& operator<<(std::ostream& _out, const mcts::Node& node);
 
 typedef std::unordered_map<Key, Node> MCTSLookupTable;
 

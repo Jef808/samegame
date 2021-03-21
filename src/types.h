@@ -5,11 +5,14 @@
 #include <array>
 #include <bits/stdint-uintn.h>
 #include <list>
+#include <string>
 #include <vector>
 
 
 namespace sg {
 
+  //class State;
+  //struct State_Action;
   struct ClusterData;
 
   const uint8_t WIDTH      = 15;
@@ -46,6 +49,11 @@ namespace sg {
   using ActionVec = std::vector<Action>;
   using ActionDVec = std::vector<ClusterData>;
   using VecClusterV = std::vector<ClusterV>;
+
+  enum class Output {
+    CONSOLE,
+    FILE
+  };
 } // namespace sg
 
 
@@ -53,8 +61,8 @@ namespace mcts {
 
   // Global aliases and constants
   const int MAX_PLY      = 128;
-  const int MAX_CHILDREN = 256;
-  const int MAX_ITER     = 10000;
+  const int MAX_CHILDREN = 64;
+  const int MAX_ITER     = 1000;
   const int MAX_TIME     = 5000;    // In milliseconds.
   const int MAX_NODES    = 10000;
 
@@ -67,7 +75,7 @@ namespace mcts {
 
   const bool propagate_minimax = false;
   const bool use_time          = false;
-  const double exploration_cst = 0.7;
+  const double exploration_cst = 0.0;
 
   enum GameNbPlayers {
       GAME_NONE,
@@ -76,7 +84,6 @@ namespace mcts {
   };
 
 } // namespace mcts
-
 
 
 #endif

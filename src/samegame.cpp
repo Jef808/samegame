@@ -14,8 +14,10 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <spdlog/fmt/ostr.h>
 #include <spdlog/spdlog.h>
 #include "samegame.h"
+
 //#include "debug.h"
 
 
@@ -105,6 +107,7 @@ Key State::generate_key() const
 {
     Key key = 0;
 
+    generate_clusters();
     for (const auto& cluster : r_clusters)
     {
         if (cluster.members.size() > 1)
@@ -114,10 +117,17 @@ Key State::generate_key() const
         }
     }
 
+    if (key == 0)
+        return 1;
     //key ^= Zobrist::rarestColorKey(*this);
     //key ^= Zobrist::terminalKey(*this);
 
     return key;
+}
+
+bool State::is_terminal(Key key) const
+{
+    return key & 1;
 }
 
 Key State::key() const
@@ -228,6 +238,9 @@ void State::pull_cells_left()
 
 bool State::is_terminal() const
 {
+    // if (p_data->key == 0)
+    //     generate_clusters();
+
     auto _beg = r_clusters.begin();
     auto _end = r_clusters.end();
 
@@ -275,12 +288,8 @@ void State::generate_clusters() const
     // to get a bijection (we want to use them to generate keys)
     for (auto& cluster : DSU::cl)
     {
-        if (cluster.members.size() > 1) {
-            cluster.rep = *std::min_element(cluster.members.begin(), cluster.members.end());
-        }
+        cluster.members.sort();
     }
-
-    need_refresh_clusters = false;
 
     // NOTE instead of the following, we now store a ref to DSU::cl and will filter out the trivial
     //      clusters in the call to valid_actions()
@@ -309,43 +318,49 @@ Cluster* State::get_cluster(Cell cell) const
 {
     generate_clusters();
 
-    if (cell == MAX_CELLS || p_data->cells[cell] == 0)
+    if (cell == MAX_CELLS || p_data->cells[cell] == 0) {
+        spdlog::warn("Call made to get_cluster with invalid cell {}, returning nullptr", (int)cell);
         return nullptr;
+    }
 
     auto it = std::find_if(DSU::cl.begin(), DSU::cl.end(), [c = cell](const auto& cluster) {
-        return cluster.members.size() > 1 && cluster.rep == c;
+        return cluster.members.size() > 1 && std::find(begin(cluster.members), end(cluster.members), c) != end(cluster.members);
     });
 
     if (it != DSU::cl.end()) {
         return &(*it);
     } else {
-
-        auto it2 = std::find_if(DSU::cl.begin(), DSU::cl.end(), [c = cell](const auto& cluster) {
-            return cluster.members.size() > 1 && std::find(begin(cluster.members), end(cluster.members), c) != end(cluster.members);
-        });
-
-        if (it2 != DSU::cl.end())
-        {
-            std::cerr << "Bug with clusters and their representatives (see get_cluster)" << std::endl;
-            generate_clusters();
-            auto it3 = std::find_if(DSU::cl.begin(), DSU::cl.end(), [c = cell](const auto& cluster) {
-                return cluster.members.size() > 1 && std::find(begin(cluster.members), end(cluster.members), c) != end(cluster.members);
-            });
-
-            if (it3 == DSU::cl.end())
-            {
-                std::cerr << "double bug with the clusters!" << std::endl;
-            }
-            return &(*it3);
-        }
-        else
-        {
-            return nullptr;
-        }
-
-
+        spdlog::debug("Returning nullptr from get_cluster!\nState was \n{}\n", State_Action{*this});
+        return nullptr;
     }
 }
+
+    //     auto it2 = std::find_if(DSU::cl.begin(), DSU::cl.end(), [c = cell](const auto& cluster) {
+    //         return cluster.members.size() > 1 &&
+    //     });
+
+    //     if (it2 != DSU::cl.end())
+    //     {
+    //         spdlog::debug("Bug with clusters and their representatives (see get_cluster)\n, state was \n{}\n", *this);
+    //         generate_clusters();
+    //         auto it3 = std::find_if(DSU::cl.begin(), DSU::cl.end(), [c = cell](const auto& cluster) {
+    //             return cluster.members.size() > 1 && std::find(begin(cluster.members), end(cluster.members), c) != end(cluster.members);
+    //         });
+
+    //         if (it3 == DSU::cl.end())
+    //         {
+    //             spdlog::debug("double bug with the clusters!\n");
+    //         }
+    //         return &(*it3);
+    //     }
+    //     else
+    //     {
+    //         return nullptr;
+    //     }
+
+
+    // }
+
 
 // Remove the cells in the chosen cluster and adjusts the colors counter.
 void State::kill_cluster(Cluster* cluster)
@@ -355,6 +370,7 @@ void State::kill_cluster(Cluster* cluster)
         auto logger = spdlog::get("m_logger");
         //logger->set_level(spdlog::level::trace);
         logger->trace("kill_cluster called with nullptr. Current state is {}", State_Action({*this}).display());
+        return;
     }
 
     assert(cluster != nullptr);
@@ -401,6 +417,13 @@ ActionDVec State::valid_actions_data() const
     //     return ret;
     for (const auto& cluster : r_clusters) {
         uint8_t size = cluster.members.size();
+
+        if (cluster.rep == CELL_NONE && size > 0) {
+            spdlog::debug("CELL_NONE cluster with size {}:\n    ", size);
+            for (auto m : cluster.members) {
+                spdlog::debug("{}, ", m);
+            }
+        }
         if (size > 1)
         {
             //Cell rep = *std::min_element(cluster.members.begin(), cluster.members.end());
@@ -484,7 +507,12 @@ void State::apply_action(const ClusterData& cd, StateData& sd)
     //
     //generate_clusters();    // There is a call to generate_clusters at start of kill_cluster
 
-    kill_cluster(get_cluster(cd.rep));     // The color counter is decremented here
+    auto* p_cluster = get_cluster(cd.rep);
+
+    if (p_cluster == nullptr)
+        spdlog::warn("Call to State::apply_action made with cluster {}", cd);
+
+    kill_cluster(p_cluster);     // The color counter is decremented here
     pull_cells_down();
     pull_cells_left();
 
@@ -719,6 +747,11 @@ string State_Action::display(sg::Output output_mode) const
 //     return _out << s;
 //     //return _out;
 // }
+
+ostream& operator<<(ostream& _out, const ClusterData& _cd)
+{
+    return _out << to_string(_cd.rep) << to_string(_cd.color) << (int)_cd.size;
+}
 
 ostream& operator<<(ostream& _out, const State_Action& state_action)
 {

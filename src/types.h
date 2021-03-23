@@ -30,7 +30,7 @@ namespace sg {
 
   struct Cluster {
       Cell rep{ CELL_NONE };
-      std::list<Cell> members;
+      std::list<Cell> members {};
   };
 
   struct ClusterV {
@@ -59,13 +59,6 @@ namespace sg {
 
 namespace mcts {
 
-  // Global aliases and constants
-  const int MAX_PLY      = 128;
-  const int MAX_CHILDREN = 64;
-  const int MAX_ITER     = 1000;
-  const int MAX_TIME     = 5000;    // In milliseconds.
-  const int MAX_NODES    = 10000;
-
   typedef double Reward;
   using sg::Action;
   using sg::ActionVec;
@@ -75,13 +68,14 @@ namespace mcts {
 
   const bool propagate_minimax = false;
   const bool use_time          = false;
-  const double exploration_cst = 0.0;
 
   enum GameNbPlayers {
       GAME_NONE,
       GAME_1P,
       GAME_2P
   };
+
+
 
 } // namespace mcts
 

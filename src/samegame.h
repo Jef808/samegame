@@ -11,18 +11,18 @@ namespace sg {
 
 // Before figuring something else, store the whole grid for undoing moves
 struct StateData {
-  Key        key;
-  int        ply;
-  Grid       cells;
+  Key        key           = 0;
+  int        ply           = 1;
+  Grid       cells         = {COLOR_NONE};
 
-  StateData* previous;
+  StateData* previous      = nullptr;
 };
 
 // What will be copied to describe the possible actions
 struct ClusterData {
-  Cell rep;
+  Cell rep                 = CELL_NONE;
   Color color              = COLOR_NONE;
-  uint8_t size             = 0;
+  size_t size              = 0;
 };
 
 // class State;
@@ -49,8 +49,9 @@ public:
   void       undo_action(Action);
   void       undo_action(const ClusterData& cd);
 
-  // Quick versions (no generate_clusters)
-  bool is_terminal_quick() const;
+  // Quick versions
+  bool is_terminal(Key) const;
+
 
   // Game implementation
   void      pull_cells_down();
@@ -78,7 +79,6 @@ public:
 
 private:
   ClusterList& r_clusters;    // A reference to the implementation's DSU
-  mutable bool need_refresh_clusters;
 
 };
 
@@ -93,10 +93,13 @@ struct State_Action {
 
 extern std::ostream& operator<<(std::ostream&, const State_Action&);
 extern std::ostream& operator<<(std::ostream&, const State&);
+extern std::ostream& operator<<(std::ostream&, const ClusterData&);
 
 inline bool operator==(const ClusterData& a, const ClusterData& b) {
   return a.color == b.color && a.size == b.size && a.rep == b.rep;
 }
+
+
 
 
 } // namespace sg

@@ -10,7 +10,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED 20)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
 set(CMAKE_VERBOSE_MAKEFILE on)
 
-set(CMAKE_BUILD_TYPE DEBUG)
+#set(CMAKE_BUILD_TYPE DEBUG)
 
 set(DATA_DIR ${PROJECT_SOURCE_DIR}/data)
 set(SRC_DIR ${PROJECT_SOURCE_DIR}/src)
@@ -60,5 +60,20 @@ target_include_directories(main PUBLIC ${SRC_DIR} ${INC_DIR} ${DATA_DIR})
 add_custom_target(log_debug SPDLOG_LEVEL=debug,m_logger=trace, && ./main
   DEPENDS main
   BYPRODUCTS log/logfile.txt)
+
+add_executable(test_avg_val tests/test_avg_val_time.cpp ${SOURCES})
+target_link_libraries(test_avg_val spdlog::spdlog)
+target_include_directories(test_avg_val PUBLIC ${SRC_DIR} ${INC_DIR} ${DATA_DIR})
+add_custom_target(debug_avg_val SPDLOG_LEVEL=debug,m_logger=trace, && ./test_avg_val
+  DEPENDS test_avg_val
+  BYPRODUCTS log/avg_val.txt)
+
+
+add_executable(test_pv tests/test_pv.cpp ${SOURCES})
+target_link_libraries(test_pv spdlog::spdlog)
+target_include_directories(test_pv PUBLIC ${SRC_DIR} ${INC_DIR} ${DATA_DIR})
+add_custom_target(play_game SPDLOG_LEVEL=debug,m_logger=trace, && ./test_pv
+  DEPENDS test_pv
+  BYPRODUCTS log/game.txt)
 
 add_custom_target(log_clean rm ${PROJECT_SOURCE_DIR}/build/logs -r)

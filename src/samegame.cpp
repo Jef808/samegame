@@ -11,6 +11,7 @@
 #include <list>
 #include <map>
 #include <random>
+#include <utility>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -23,7 +24,19 @@
 
 namespace sg {
 
-Cluster CLUSTER_NONE = {CELL_NONE, {}};
+const Cluster CLUSTER_NONE = {CELL_NONE, {}};
+
+std::string to_string(const std::list<Cell> cl_members) {
+    std::stringstream ss;
+    for (const auto& m : cl_members) {
+        ss << m << ", ";
+    }
+    return ss.str();
+}
+
+std::ostream& operator<<(std::ostream& _out, const Cluster& cluster) {
+    return _out << (cluster == CLUSTER_NONE ? "CLUSTER_NONE" : to_string(cluster.members));
+}
 
 //**************************  Disjoint Union Structure  ********************************/
 
@@ -100,6 +113,7 @@ namespace Zobrist {
 //********************************  Bitwise methods  ***********************************/
 
 // Generate a Zobrist hash from the grid
+// TODO: As for generate_clusters(), can be more efficient
 Key State::generate_key() const
 {
     generate_clusters();
@@ -107,8 +121,7 @@ Key State::generate_key() const
     Key key = 0;
     uint8_t ndx = 0;
 
-    for (auto cell : p_data->cells)
-    {
+    for (auto cell : p_data->cells) {
         if (cell != COLOR_NONE) {
             key ^= Zobrist::cellColorKey(ndx, cell);
         }
@@ -145,15 +158,10 @@ Key State::generate_key(const Cluster& cluster) const
     return key;
 }
 
-bool State::is_terminal(Key key)
-{
-    return key & 1;
-}
-
-Key State::apply_action(Key state_key, Key action_key)
-{
-    return 0;
-}
+// Key State::apply_action(Key state_key, Key action_key)
+// {
+//     return 0;
+// }
 
 Key State::key() const
 {
@@ -192,11 +200,21 @@ State::State(std::istream& _in, StateData& sd)
     }
 
     generate_clusters();
+    init_ccounter();
     p_data->key = generate_key();
     p_data->ply = 0;
-    init_ccounter();
 }
 
+void State::init_ccounter()
+{
+    Grid& m_cells = p_data->cells;
+    for (const auto& cluster : r_clusters)
+    {
+        colors[m_cells[cluster.members.back()]] += cluster.members.size();
+    }
+}
+
+// TODO: Only check columns intersecting the killed cluster
 void State::pull_cells_down()
 {
     Grid& m_cells = p_data->cells;
@@ -221,6 +239,7 @@ void State::pull_cells_down()
     }
 }
 
+// TODO: Only check columns (before finding one) intersecting the killed cluster
 void State::pull_cells_left()
 {
     Grid& m_cells = p_data->cells;
@@ -261,9 +280,11 @@ void State::pull_cells_left()
 
 bool State::is_terminal() const
 {
-    // if (p_data->key == 0)
-    //     generate_clusters();
+    return is_terminal(p_data->key);
+}
 
+bool State::check_terminal() const
+{
     auto _beg = r_clusters.begin();
     auto _end = r_clusters.end();
 
@@ -275,12 +296,33 @@ bool State::is_empty() const
     return cells()[(HEIGHT - 1) * WIDTH] == COLOR_NONE;
 }
 
+
+// NOTE: Can return empty vector
+ActionDVec State::valid_actions_data() const
+{
+    generate_clusters();
+
+    ActionDVec ret { };
+
+    for (auto& cluster : r_clusters) {
+        if (uint8_t sz = cluster.members.size(); sz > 1) {
+            if (Cell rep = cluster.members.front(); rep != CELL_NONE) {
+                if (Color color = p_data->cells[rep]; color != COLOR_NONE) {
+                    ret.emplace_back(ClusterData{rep, color, sz});
+                }
+            }
+        }
+    }
+    return ret;
+}
+
 //******************************* MAKING MOVES ***********************************/
 
 
 // TODO start from bottom left corner and try to stop early when most of the grid is empty.
 void State::generate_clusters() const
 {
+    // TODO: Implement something like that:
     // if (!need_refresh_clusters) {
     //     spdlog::debug("Unnecessary gen_clusters call");
     //     return;
@@ -312,38 +354,17 @@ void State::generate_clusters() const
     for (auto& cluster : DSU::cl)
     {
         cluster.members.sort();
-    }
-
-    // NOTE instead of the following, we now store a ref to DSU::cl and will filter out the trivial
-    //      clusters in the call to valid_actions()
-    //
-    // for (int i = 0; i < MAX_CELLS; ++i) {
-    //     auto& cluster = DSU::cl[i].members;
-
-    //     if (cluster.size() > 1) {
-    //         auto color = m_cells[cluster.back()];
-    //         colors[color] += cluster.size();
-    //         m_clusters.push_back(&cluster);
-    //     }
-    // }
-}
-
-void State::init_ccounter()
-{
-    Grid& m_cells = p_data->cells;
-    for (const auto& cluster : r_clusters)
-    {
-        colors[m_cells[cluster.members.back()]] += cluster.members.size();
+        cluster.rep = cluster.members.front();
     }
 }
 
+// TODO Stop sending back naked pointers to data that's constantly changing maybe?
 Cluster* State::get_cluster(Cell cell) const
 {
     generate_clusters();
-
     if (cell == MAX_CELLS || p_data->cells[cell] == 0) {
         spdlog::warn("Call made to get_cluster with invalid cell {}, returning CLUSTER_NONE", (int)cell);
-        return &CLUSTER_NONE;
+        return const_cast<Cluster*>(&CLUSTER_NONE);
     }
 
     auto it = std::find_if(DSU::cl.begin(), DSU::cl.end(), [c = cell](const auto& cluster) {
@@ -354,36 +375,9 @@ Cluster* State::get_cluster(Cell cell) const
         return &(*it);
     } else {
         spdlog::debug("Returning CLUSTER_NONE from get_cluster!\nState was \n{}\n", State_Action{*this});
-        return &CLUSTER_NONE;
+        return const_cast<Cluster*>(&CLUSTER_NONE);
     }
 }
-
-    //     auto it2 = std::find_if(DSU::cl.begin(), DSU::cl.end(), [c = cell](const auto& cluster) {
-    //         return cluster.members.size() > 1 &&
-    //     });
-
-    //     if (it2 != DSU::cl.end())
-    //     {
-    //         spdlog::debug("Bug with clusters and their representatives (see get_cluster)\n, state was \n{}\n", *this);
-    //         generate_clusters();
-    //         auto it3 = std::find_if(DSU::cl.begin(), DSU::cl.end(), [c = cell](const auto& cluster) {
-    //             return cluster.members.size() > 1 && std::find(begin(cluster.members), end(cluster.members), c) != end(cluster.members);
-    //         });
-
-    //         if (it3 == DSU::cl.end())
-    //         {
-    //             spdlog::debug("double bug with the clusters!\n");
-    //         }
-    //         return &(*it3);
-    //     }
-    //     else
-    //     {
-    //         return nullptr;
-    //     }
-
-
-    // }
-
 
 // Remove the cells in the chosen cluster and adjusts the colors counter.
 void State::kill_cluster(Cluster* cluster)
@@ -392,12 +386,16 @@ void State::kill_cluster(Cluster* cluster)
     {
         auto logger = spdlog::get("m_logger");
         //logger->set_level(spdlog::level::trace);
-        logger->trace("kill_cluster called with nullptr. Current state is {}", State_Action({*this}).display());
+        spdlog::critical("kill_cluster called with nullptr. Current state is {}", State_Action{*this});
+        return;
+    } else if (cluster == &CLUSTER_NONE)
+    {
+        spdlog::warn("kill_cluster called with CLUSTER_NONE. Current state is {}", *this);
         return;
     }
 
-    assert(cluster != nullptr);
-    assert(cluster->members.size() > 1);    // NOTE: if cluster is 0 initialized this doesn't check anything
+    //assert(cluster != nullptr);
+    //assert(cluster->members.size() > 1);    // NOTE: if cluster is 0 initialized this doesn't check anything
 
     for (auto& cell : cluster->members) {
         Color& color = p_data->cells[cell];
@@ -406,80 +404,173 @@ void State::kill_cluster(Cluster* cluster)
     }
 }
 
-// void State::kill_cluster(const Cluster* cluster)
-// {
-//     assert(cluster != nullptr);
-//     assert(cluster->members.size() > 1);    // NOTE: if cluster is 0 initialized this doesn't check anything
-
-//     for (auto& cell : cluster->members) {
-//         Color& color = p_data->cells[cell];
-//         --colors[color];
-//         color = COLOR_NONE;
-//     }
-// }
-
-// ActionVec State::valid_actions() const
-// {
-//     ActionVec ret { };
-//     //generate_clusters();    // NOTE: This is done after apply_action calls and on construction of the state.
-//     for (const auto& cluster : r_clusters) {
-//         if (cluster.members.size() > 1)
-//             ret.push_back(cluster.rep);
-//     }
-
-//     return ret;
-// }
-
-// NOTE: Can return empty vector
-ActionDVec State::valid_actions_data() const
-{
-    generate_clusters();
-
-    ActionDVec ret { };
-
-    for (auto& cluster : r_clusters) {
-        if (auto sz = cluster.members.size(); sz > 1) {
-            if (Cell rep = cluster.members.front(); rep != CELL_NONE) {
-                if (Color color = p_data->cells[rep]; color != COLOR_NONE) {
-                    ret.emplace_back(rep, color, sz);
-                }
-            }
-        }
-    }
-    return ret;
-}
-
-
-
-
-
 void State::apply_action(const ClusterData& cd, StateData& sd)
 {
     sd.previous = p_data;                    // Provide info of current state.
     sd.cells = cells();                      // Copy the current grid on the provided StateData object
     p_data = &sd;
 
-    // Update the grid in the new StateData object
-    // FIXME I hate doing this but for now I need to recalculate the cluster
-    //
-    //generate_clusters();    // There is a call to generate_clusters at start of kill_cluster
 
+    //generate_clusters();    // NOTE: There is a call to generate_clusters at start of get_cluster
     auto* p_cluster = get_cluster(cd.rep);
 
     if (p_cluster == nullptr)
+        spdlog::critical("Call to State::apply_action made with cluster {}", cd);
+    if (p_cluster == &CLUSTER_NONE)
         spdlog::warn("Call to State::apply_action made with cluster {}", cd);
 
     kill_cluster(p_cluster);     // The color counter is decremented here
     pull_cells_down();
     pull_cells_left();
 
-    // TODO Make necessary computations and update the keys.
     generate_clusters();
     p_data->key = generate_key();
 }
 
-// // NOTE: To be used when we no longer have access to the DSU data
-// // TODO implement more cleaverly, using bitboards say
+
+// Need a ClusterData object if undoing multiple times in a row!!!!
+void State::undo_action(Action action)
+{
+    // Simply revert the data
+    p_data = p_data->previous;
+
+    // Use the action to reincrement the color counter
+    auto cluster_cells = get_cluster(action)->members;
+    Color color = p_data->cells[cluster_cells.back()];
+    colors[color] += cluster_cells.size();
+}
+
+void State::undo_action(const ClusterData& cd)
+{
+    // Simply revert the data
+    p_data = p_data->previous;
+
+    // Use the action to reincrement the color counter
+    colors[cd.color] += cd.size;
+}
+
+
+ClusterData State::kill_cluster_blind(Cell cell, Color color = COLOR_NONE)
+{
+    if (color == COLOR_NONE) {
+        color = p_data->cells[cell];
+        assert(color != COLOR_NONE);
+    }
+
+    std::deque<Action> queue{ cell };
+
+    uint8_t cnt = 0;
+    Grid& grid = p_data->cells;
+    Cell cur;
+    while (!queue.empty())
+    {
+        cur = queue.back();
+        queue.pop_back();
+        // remove boundary cells of same color as action
+        // Look right
+        if (cur % WIDTH < WIDTH - 1 && grid[cur+1] == color) {
+            grid[cur+1] = COLOR_NONE;
+            queue.push_back(cur+1);
+            ++cnt;
+        }
+        // Look down
+        if (cur < (HEIGHT - 1) * WIDTH && grid[cur + WIDTH] == color) {
+            grid[cur + WIDTH] = COLOR_NONE;
+            queue.push_back(cur+WIDTH);
+            ++cnt;
+        }
+        // Look left
+        if (cur % WIDTH > 0 && grid[cur-1] == color) {
+            grid[cur - 1] = COLOR_NONE;
+            queue.push_back(cur-1);
+            ++cnt;
+        }
+        // Look up
+        if (cur > WIDTH - 1 && grid[cur - WIDTH] == color) {
+            grid[cur - WIDTH] = COLOR_NONE;
+            queue.push_back(cur - WIDTH);
+            ++cnt;
+        }
+    }
+
+    if (cnt == 1) {
+        grid[cell] = color;
+    }
+
+    return {cell, color, cnt};
+}
+
+namespace Random {
+
+    enum class Dir {
+        UP = -15, LEFT = -1, RIGHT = 1, DOWN = 15, NONE
+    };
+
+    Dir pick_dir(int i)
+    {
+        switch (i)
+        {
+            case 0:
+                return Dir::RIGHT;
+            case 1:
+                return Dir::LEFT;
+            case 2:
+                return Dir::UP;
+            case 3:
+                return Dir::DOWN;
+            default:
+                return Dir::NONE;
+        }
+    }
+
+    std::random_device rd;
+    std::mt19937 e{rd()}; // or std::default_random_engine e{rd()};
+    std::uniform_int_distribution<int> dist{0, 225};
+
+    std::pair<uint8_t, Dir> random_directed_row()
+    {
+        return std::make_pair(dist(rd) % 15, pick_dir(dist(rd) % 2));
+    }
+
+    // Return a random choice, or a NULL cd
+    ClusterData choose(const ActionDVec& choices)
+    {
+        if (choices.empty())
+            return ClusterData { CELL_NONE, COLOR_NONE, 0 };
+        return choices[dist(rd) % choices.size()];
+    }
+}
+
+// Pick a random start point and direction and start looking for a cluster.
+// NOTE: ******* DO NOT ******* call with terminal state! (inifinite loop)
+ClusterData State::apply_random_action()
+{
+    ClusterData ret { CELL_NONE, COLOR_NONE, 0 };
+
+    while (ret.size < 2)
+    {
+        auto [row, dir] = Random::random_directed_row();
+
+        Cell cell = row * 15 + int(dir) * 14;       // start at the beggining of the random row if dir is RIGHT, at the end if it's LEFT
+        Color color = p_data->cells[cell];
+        int steps = 0;
+
+        while (color == COLOR_NONE && steps < 15)   // start walking
+        {
+            cell += Cell(dir);
+            ++steps;
+        }
+
+        if (steps < 15) {
+            ret = kill_cluster_blind(cell, color);   // try and kill a cluster if you meet one, otherwise repeat.
+        }
+    }
+
+    return ret;
+}
+
+
+// NOTE: An apply_action method without using cluster information
 // void State::apply_action_blind(Action action, StateData& sd)
 // {
 //     //using pii = std::pair<uint8_t, uint8_t>;
@@ -527,34 +618,13 @@ void State::apply_action(const ClusterData& cd, StateData& sd)
 //             ++cnt;
 //         }
 //     }
-
+//
 //     colors[color] -= cnt;
 //     pull_cells_down();
 //     pull_cells_left();
 //     generate_clusters();
 //     p_data->key = generate_key();
 // }
-
-// Need a ClusterData object if undoing multiple times in a row!!!!
-void State::undo_action(Action action)
-{
-    // Simply revert the data
-    p_data = p_data->previous;
-
-    // Use the action to reincrement the color counter
-    auto cluster_cells = get_cluster(action)->members;
-    Color color = p_data->cells[cluster_cells.back()];
-    colors[color] += cluster_cells.size();
-}
-
-void State::undo_action(const ClusterData& cd)
-{
-    // Simply revert the data
-    p_data = p_data->previous;
-
-    // Use the action to reincrement the color counter
-    colors[cd.color] += cd.size;
-}
 
 
 //*************************** DEBUG *************************/
@@ -570,16 +640,16 @@ enum class Color_codes : int {
     YELLOW    = 33,
     BLUE      = 34,
     MAGENTA   = 35,
-    // CYAN      = 36,
-    // WHITE     = 37,
-    // B_BLACK   = 90,
-    // B_RED     = 91,
-    // B_GREEN   = 92,
-    // B_YELLOW  = 93,
-    // B_BLUE    = 94,
-    // B_MAGENTA = 95,
-    // B_CYAN    = 96,
-    // B_WHITE   = 97,
+    CYAN      = 36,
+    WHITE     = 37,
+    B_BLACK   = 90,
+    B_RED     = 91,
+    B_GREEN   = 92,
+    B_YELLOW  = 93,
+    B_BLUE    = 94,
+    B_MAGENTA = 95,
+    B_CYAN    = 96,
+    B_WHITE   = 97,
 };
 
 enum class Shape : int {
@@ -588,11 +658,6 @@ enum class Shape : int {
     B_DIAMOND,
     NONE
 };
-
-// enum class Output {
-//     CONSOLE,
-//     FILE
-// };
 
 map<Shape, string> Shape_codes {
     {Shape::SQUARE,    "\u25A0"},
@@ -607,7 +672,7 @@ string shape_unicode(Shape s)
 
 string color_unicode(Color c)
 {
-    return to_string((int)Color_codes(c + 30));
+    return std::to_string((int)Color_codes(c + 90));
 }
 
 string print_cell(const sg::Grid& grid, Cell ndx, Output output_mode, Cell action_rep = MAX_CELLS, const vector<Cell>& cluster_vec = vector<Cell>())
@@ -633,7 +698,7 @@ string print_cell(const sg::Grid& grid, Cell ndx, Output output_mode, Cell actio
         if (ndx == action_rep)
             formatter += "\033[4m]";
 
-        ss << formatter << to_string(grid[ndx]) << "\033[0m\e[0m";
+        ss << formatter << std::to_string(grid[ndx]) << "\033[0m\e[0m";
 
         return ss.str();
     }
@@ -688,26 +753,9 @@ string State_Action::display(sg::Output output_mode) const
     return ss.str();
 }
 
-
-
-// template<>
-// spdlog::sinks::sink& operator<<(spdlog::sinks::sink& sink, const State_Action& state_action)
-// {
-//     if (sink.)
-//     return _out << display(state_action, Output::CONSOLE);
-//     //return _out;
-// }
-
-// template<typename OStream>
-// OStream& operator<<(OStream& _out, const string& s)
-// {
-//     return _out << s;
-//     //return _out;
-// }
-
 ostream& operator<<(ostream& _out, const ClusterData& _cd)
 {
-    return _out << to_string(_cd.rep) << to_string(_cd.color) << (int)_cd.size;
+    return _out << std::to_string(_cd.rep) << std::to_string(_cd.color) << (int)_cd.size;
 }
 
 ostream& operator<<(ostream& _out, const State_Action& state_action)
@@ -720,46 +768,5 @@ ostream& operator<<(ostream& _out, const State& state)
 {
     return _out << State_Action({state}).display(Output::CONSOLE);
 }
-
-// template<>
-// ofstream& operator<< <ofstream>(ofstream& _out, const State& state)
-// {
-//     return _out << display({state}, Output::FILE);
-// }
-
-// template<>
-// ostream& operator<< <std::ostream>(std::ostream& _out, const State_Action& state_action)
-// {
-//     _out << display(state_action, Output::CONSOLE);
-//     return _out;
-// }
-
-// template<>
-// ofstream& operator<< <std::ofstream>(std::ofstream& _out, const State_Action& state_action)
-// {
-//     _out << display(state_action, Output::FILE);
-
-
-// }
-
-// template<typename OStream>
-// OStream& operator<<(OStream& _out, const State& state)
-// {
-//     return _out << display({state}, Output::FILE);
-// }
-
-// template<>
-// std::ostream& operator<< <std::ostream>(std::ostream& _out, const State& state)
-// {
-//     _out << display({state}, Output::CONSOLE);
-//     return _out;
-// }
-
-// template<>
-// std::ostream& operator<< <std::ostream>(std::ostream& _out, const State_Action& state_action)
-// {
-//     _out << display(state_action, Output::FILE);
-//     return _out;
-// }
 
 } //namespace sg

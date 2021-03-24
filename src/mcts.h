@@ -23,7 +23,7 @@ const int MAX_PLY         = 128;
 const int MAX_CHILDREN    = 128;
 const int MAX_ITER        = 1500;
 const int MAX_TIME        = 10000;   // In milliseconds.
-const int MAX_NODES       = 10000;
+//const int MAX_NODES       = 10000;
 const double EXPLORATION_CST = 0.04;
 
 struct Edge;
@@ -97,12 +97,13 @@ public:
   void print_tree(std::ostream&, int depth) const;
   void reset();
 
-
   friend std::ostream& operator<<(std::ostream&, const Agent&);
   static std::string debug_tree_stats(const Agent&);
   static std::string debug_edge_stats(const Edge&);
   static std::string debug_node_stats(const Node&);
   void print_final_score() const;
+  bool debug_tree_policy  = false;
+  double get_exploration_cst() const;
 
   // Data
   State& state;
@@ -122,9 +123,7 @@ public:
   double value_global_avg;
   int    global_max_depth;
 
-    // To keep track of the data during the search (indexed by ply)
-  // They are all 0-value initialized in the set_root() method
-  // NOTE It might be too much to store all of that on the stack...
+  // To keep track of the data during the search (indexed by ply)
   std::array<Node*, MAX_PLY>        nodes{ };       // Elements are stored in the MCTSLookupTable
   std::array<Edge*, MAX_PLY>        actions{ };     // Elements are stored in their parent node
   std::array<StateData, MAX_PLY>    states{ };      // To keep history of states along a branch (stored on the heap)
@@ -133,7 +132,6 @@ private:
   int ply;
   double exploration_cst = EXPLORATION_CST;
   int    max_iterations  = MAX_ITER;
-
 };
 
 struct Edge {
@@ -142,15 +140,10 @@ struct Edge {
   int     val_best;
   Reward  reward_avg_visit;
   int     n_visits;
-  bool    decisive;                              // If it is a known win etc...
 };
 
 struct Node {
   using Edges = std::vector<Edge>;
-  // NOTE: Careful when iterating through edges, an Edge object doesn't have
-  // a 'zero' value (so may be initialized with random noise).
-  // NOTE: after the init_children() method, the children will be ordered by
-  // the score found from one simulation starting at that child.
   Key      key;
   int      n_visits;
   int      n_children;

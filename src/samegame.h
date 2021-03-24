@@ -36,7 +36,6 @@ public:
   State(const State&) = delete;
   State& operator=(const State&) = delete;
 
-  void       init_ccounter();
   Key        generate_key() const;
   Key        generate_key(const Cluster&) const;
   // Game interface
@@ -45,24 +44,20 @@ public:
   ActionDVec valid_actions_data() const;
   ActionVec  valid_actions() const;
   VecClusterV valid_actions_clusters() const;
-  Action     random_valid_action() const;
-  void       apply_action_cluster(const Cluster*, StateData&);    // TODO have the state manage the various apply_actions
   void       apply_action(const ClusterData&, StateData&);
-  void       apply_action_blind(Action, StateData&);
+  ClusterData apply_random_action();
   void       undo_action(Action);
   void       undo_action(const ClusterData&);
+  // Quick bitwise versions
+  static bool is_terminal(Key);
+  //static Key apply_action(Key, Key);
 
   // Game implementation
   void      pull_cells_down();
   void      pull_cells_left();
   void      generate_clusters() const;
-  Cluster*  get_cluster(Cell) const;
-  void      kill_cluster(Cluster*);    // TODO Just pick one of those, also make it nonmember?
-  void      kill_cluster(const Cluster*);
-
-  // Quick bitwise versions
-  static bool is_terminal(Key);
-  static Key apply_action(Key, Key);
+  void      kill_cluster(Cluster*);
+  Cluster * get_cluster(Cell) const;
 
   // Game data
   StateData*    p_data;
@@ -78,8 +73,10 @@ public:
   std::string display(const State&, Output = Output::CONSOLE) const;
 
 private:
-  ClusterList& r_clusters;    // A reference to the implementation's DSU
-
+  ClusterList& r_clusters;                // A reference to the implementation's DSU
+  void init_ccounter();                   // TODO: All methods that require generate_cluster() should be private
+  bool check_terminal() const;            // Only used on initialization (if no key available)
+  ClusterData kill_cluster_blind(Cell, Color);   // Used to apply a random action for simulations
 };
 
 // For debugging
@@ -94,12 +91,18 @@ struct State_Action {
 extern std::ostream& operator<<(std::ostream&, const State_Action&);
 extern std::ostream& operator<<(std::ostream&, const State&);
 extern std::ostream& operator<<(std::ostream&, const ClusterData&);
+extern std::ostream& operator<<(std::ostream&, const Cluster&);
 
+inline bool operator==(const Cluster& a, const Cluster& b) {
+  return a.rep == b.rep && a.members == b.members;
+}
 inline bool operator==(const ClusterData& a, const ClusterData& b) {
   return a.color == b.color && a.size == b.size && a.rep == b.rep;
 }
 
-
+inline bool State::is_terminal(Key key) {
+    return key & 1;
+}
 
 
 } // namespace sg

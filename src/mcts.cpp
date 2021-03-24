@@ -202,8 +202,6 @@ ClusterData Agent::MCTSBestAction()
         step();
     }
 
-
-
     auto* choice = best_visits(root);
 
     return choice->cd;
@@ -220,6 +218,7 @@ void Agent::step()
     ++cnt_iterations;
 }
 
+// Navigate to an unexplored node, selecting the path carefully to maximize rewards and minimize regret.
 Node* Agent::tree_policy()
 {
     assert(is_root(current_node()));
@@ -229,39 +228,52 @@ Node* Agent::tree_policy()
        return root;
     }
 
-    state.generate_clusters();    // NOTE: For subsequent iterations of the MCTS algorithm,
-                                  // when a bunch of undo_actions() have just been done.
-                                  // TODO: Since this is always starting at the root, we might
-                                  // as well save the clusters configuration at the root for the
-                                  // whole thing. (It's already kind of encoded into the root's children... )
+    // NOTE: In subsequent steps of the main MCTS loop, tree_policy enters right after doing
+    //       a series of undo_action(). Therefore the state's clusters are usually not up to date
+    //       at this point.
+    state.generate_clusters();
+                                  // TODO: On the other hand, the starting node of tree_policy is constant
+                                  //       (the root) so this computation should only be done once.
 
-    // Navigate to an unexplored node, selecting the path carefully to maximize rewards and minimize regret.
-    // NOTE: with the is_terminal check in the while loop condition, we can increment the n_visit of terminal nodes
-    // equally in the rollout_policy is_terminal check, and the cnt_descent is always incremented!
+    std::vector<Edge> node_children_cpy = {};
+    node_children_cpy.reserve(root->n_children);
+
     while (!is_terminal(current_node()) && current_node()->n_visits > 0 && ply < MAX_PLY)
     {
         // The strategy for balancing exploration and exploitaion
+        // NOTE: The "best" methods return a pointer to 'ACTION_NONE' when they can't find any candiate.
         actions[ply] = best_ucb(current_node());
 
-        ++nodes[ply]->n_visits;
-        // spdlog::debug("\nStep={} ply={}\n", cnt_iterations, ply);
-        // for (int i=0; i<current_node()->n_children; ++i)
-        // {
-        //     auto* child = &current_node()->children[i];
-        //     if (child->cd.rep == actions[ply]->cd.rep)
-        //         spdlog::debug("  \033[35m{}, UCB={:.2f}\033[m", current_node()->children[i], ucb(current_node(), *child));
-        //     else
-        //         spdlog::debug("  {}, UCB={:.2f}", current_node()->children[i], ucb(current_node(), *child));
-        // }
+        if (debug_tree_policy)
+        {
+            int cc = 1;
+            auto logger = spdlog::get("m_logger");
+            logger->trace("tree_policy with ply={}, \033[35mexp_cst={}\033[m, best_ucb chose \033[35m{}\033[m for ucb={}\nThe other moves are\n", ply, exploration_cst, actions[ply]->cd.rep, ucb(current_node(), *actions[ply]));
+            spdlog::debug("tree_policy with ply={}, \033[35mexp_cst={}\033[m, best_ucb chose \033[35m{}\033[m for ucb={}\nThe other moves are\n", ply, exploration_cst, actions[ply]->cd.rep, ucb(current_node(), *actions[ply]));
 
-
-        if (actions[ply]->cd.size < 2) {
-
-            spdlog::debug("best_ucb returned {} on state \n{}\nThe state had children\n", actions[ply]->cd.rep, state);
-            for (auto& c : current_node()->children_list()) {
-                spdlog::debug("{}\n", c);
+            // So as to not interfere with anything, we copy the children before sorting them for debugging purposes.
+            node_children_cpy = root->children;
+            std::sort(begin(node_children_cpy), end(node_children_cpy), [](const auto& a, const auto& b) {
+                return a.reward_avg_visit > b.reward_avg_visit;
+            });
+            for (const auto& c : root->children) {
+                if (c.cd == actions[ply]->cd) {
+                    logger->trace("    \033[35m{}\033[m,val_best={},ucb={}", c, c.val_best, ucb(current_node(), c));
+                    spdlog::debug("    \033[35m{}\033[m,val_best={},ucb={}", c, c.val_best, ucb(current_node(), c));
+                } else {
+                    logger->trace("    {},val_best={},ucb={}", c, c.val_best, ucb(current_node(), c));
+                    spdlog::debug("    {},val_best={},ucb={}", c, c.val_best, ucb(current_node(), c));
+                }
             }
 
+            spdlog::debug("Enter any number when ready...");
+            std::cin >> cc; std::cin.ignore();
+        }
+
+        ++nodes[ply]->n_visits;
+
+        if (actions[ply]->cd.size < 2) {
+            spdlog::warn("best_ucb returned {} on state \n{}\n", actions[ply]->cd.rep, state);
         }
 
         // if (actions[ply]->cd.size == 0)
@@ -301,55 +313,30 @@ Reward Agent::rollout_policy(Node* node)
 
     if (is_terminal(current_node())) {
         ++current_node()->n_visits;
-        rollout_reward += evaluate_terminal();
+        rollout_reward += actions[ply-1]->sg_value_from_root + evaluate_terminal();
     }
 
-    // NOTE: It is possible that we want to "sample" the same path to a terminal node a few times during
-    // the algorithm, then start selecting another path after a few iterations...
-    // if (is_terminal(node))
-    // {
-    //     spdlog::debug("Move {} Step {}, is_terminal() returned true.", cnt_new_roots, cnt_iterations);
-    //     if (state.key() != current_node()->key)
-    //         spdlog::debug("Move {} Step {}, keys don't match after call to is_terminal.", cnt_new_roots, cnt_iterations);
-    //     ++node->n_visits;
-    //     rollout_reward = node->parent->sg_value_from_root + evaluate_terminal();
-    // }
     else
     {
         assert(node->n_visits == 0);
 
-        // if (state.key() != current_node()->key)
-        //     spdlog::debug("Move {} Step {}, keys don't match entering rollout_policy", cnt_new_roots, cnt_iterations);
-        // Expand the node and do a rollout on each child (if any) and sets node->n_visits to 1
-        // The newly intialized children's val_best also includes the sg_value_from_root of parent.
+        // NOTE: Children are initialized by performing a random simulation and storing the
+        //       result (+ the sg_val_from_root static value) in their val_best field.
+        //       The children are then sorted in increasing order of best_val.
         init_children();
 
-        // if (state.key() != current_node()->key)
-        //     spdlog::debug("Move {} Step {}, keys don't match after init_child", cnt_new_roots, cnt_iterations);
-        rollout_reward = node->children.back().val_best;
+        // TODO: Test the impact of returning rollout_reward = average of the node->children[i].val_best instead
+        //       of the best result as below.
+        //       Also check if doing a certain amount of simulations instead of just one helps out.
+        rollout_reward += node->children[0].val_best;
 
-        // NOTE: Only after init_children() can we can tell that the node is terminal, since
-        //       is_terminal() returns n_visits > 1 && n_children == 0;
-        //
-        // NOTE: With Samegame, it's probaby better to initialize nodes with average value of their child (maybe do more
-        // than 1 simul in init_children too?)
+        // TODO: Decide if the global max/min values are actually needed (was initially for addressing
+        //       the problem of normalizing rewards between 0 and 1).
 
-
-        // if (node->n_children == 0) {
-        //     rollout_reward = node->parent->sg_value_from_root + evaluate_terminal();
-        // } else {
-        //     for (int i=0; i < node->n_children; ++i)
-        //     {
-        //         rollout_reward += node->children[i].val_best;
-        //     }
-        //     rollout_reward /= node->n_children;
-        // }
-
-        if (node->children[0].val_best < value_global_min) {
-        value_global_min = node->children[0].val_best;
+        if (node->children.back().val_best < value_global_min) {
+        value_global_min = node->children.back().val_best;
         }
     }
-
     if (rollout_reward > value_global_max) {
         value_global_max = rollout_reward;
     }
@@ -359,10 +346,8 @@ Reward Agent::rollout_policy(Node* node)
     return rollout_reward;
 }
 
-// Backpropagate the rollout reward r, that is the best value seen after running a
-// random playout from each child of node.
-//
-// Let's start by rescaling the reward linearly before using the sharper curves above
+// Backpropagate the rollout reward r, (the best value seen after running a
+// random playout from each child of the expanded node).
 void Agent::backpropagate(Node* node, Reward r)
 {
     assert(node == current_node());
@@ -417,10 +402,10 @@ void Agent::init_children()
         //new_action.reward_avg_visit = 0;
     }
 
-    int n_children = children_cont.size() > MAX_CHILDREN ? MAX_CHILDREN : children_cont.size();
+    auto n_children = children_cont.size() > MAX_CHILDREN ? MAX_CHILDREN : children_cont.size();
     std::partial_sort(begin(children_cont), begin(children_cont) + n_children, end(children_cont),
         [](const auto& a, const auto& b) {
-            return a.val_best < b.val_best;
+            return a.val_best > b.val_best;
         });
 
     if (n_children < children_cont.size())
@@ -435,21 +420,26 @@ void Agent::init_children()
 // (really, state-before-known-win/lose) to start building a table of alphas and betas.
 Reward Agent::random_simulation(ClusterData _cd)
 {
-    stack[ply].r = 0;
+    Reward res = stack[ply].r = 0;
     int depth=0;
     // Do until we hit a terminal state or the maximum depth
-    while (!State::is_terminal(state.key()) && ply < MAX_PLY)
+    // NOTE: Since we do not compute the keys for efficiency, we can't use is_terminal method
+    while (_cd.rep!=CELL_NONE && ply < MAX_PLY)
     {
         stack[ply+1].r = stack[ply].r + sg_value(_cd);  // Accumulate the rewards
 
-        assert(_cd.rep != CELL_NONE && state.cells()[_cd.rep] != COLOR_NONE);    // It should be CELL_NONE iff cd.size == 0
+        if (_cd.rep == CELL_NONE || state.cells()[_cd.rep] == COLOR_NONE) {
+            spdlog::warn("random_simulation called with ClusterData {}, acting as if state is terminal\n{}\n", _cd, state);
+            break;
+        }
+
         apply_action(_cd);
         ++depth;
 
         _cd = Random::choose(state.valid_actions_data());   // TODO Really wasting a lot of ressource by computing all clusters just to return 1.
     }
 
-    Reward res = stack[ply].r;    // Contains the sum of all rewards through the simulation.
+    res = stack[ply].r;    // Contains the sum of all rewards through the simulation.
 
     if (ply < MAX_PLY)
         res += evaluate_terminal();
@@ -490,66 +480,41 @@ Reward Agent::ucb(Node* node, const Edge& edge)
 Edge* Agent::best_ucb(Node* node)
 {
     Edge* best = &EDGE_NONE;
-    auto best_val = std::numeric_limits<Reward>::min();
+    Reward best_val = std::numeric_limits<Reward>::min();
 
     for (auto& c : node->children_list())
     {
-        if (auto r = ucb(current_node(), c); r > best_val)
+        if (Reward r = ucb(current_node(), c); r > best_val) {
+            best_val = r;
             best = &c;
+        }
     }
 
     if (best == &EDGE_NONE && node->children_list().size() > 0) {
-        return &node->children_list().back();
+        return &(node->children_list()[0]);
     }
 
     return best;
-
-    // for (int i=0; i<node->n_children; ++i)
-    // {
-    //     auto c = node->children[i];
-
-    //     Reward r = ucb(current_node(), c);
-    //     if (r > best_val)
-    //     {
-    //         best_val = r;
-    //         best_ndx = i;
-    //     }
-
-        // if (Debug::debug_ucb) {
-        //     std::cerr << "Edge " << (int)c.cd.rep << ":\n";
-        //     std::cerr << "    best: " << int(c.val_best) << " avg: " << std::fixed << c.reward_avg_visit << " ucb-expl: " << std::fixed << r - c.reward_avg_visit << '\n';
-        //     std::cerr << "    ucb-value: " << r << std::endl;
-        // }
-    // }
-
-
-    // return &(node->children[best_ndx]);
 }
 
 Edge* Agent::best_visits(Node* node)
 {
-    // if (Debug::debug_best_visits)
-    //     std::cerr << "Choosing best visits. choices are :";
-
     Edge* best = &EDGE_NONE;
     auto cur_best = std::numeric_limits<Reward>::min();
 
     for (auto& c : node->children_list())
     {
-        if (auto r = c.val_best; r > cur_best)
+        if (auto r = c.val_best; r > cur_best) {
+            cur_best = r;
             best = &c;
+        }
     }
 
     if (best == &EDGE_NONE && node->children_list().size() > 0) {
-        return &node->children_list().back();
+        return &(node->children_list()[0]);
     }
 
     return best;
-
-    // if (Debug::debug_best_visits)
-    //     std::cerr << "Returning with action " << (int)node->children[best].cd.rep << std::endl;
-
-    //return &(node->children[best]);
 }
 
 Edge* Agent::best_avg_val(Node* node)
@@ -559,44 +524,17 @@ Edge* Agent::best_avg_val(Node* node)
 
     for (auto& c : node->children_list())
     {
-        if (auto r = c.reward_avg_visit; r > cur_best)
+        if (auto r = c.reward_avg_visit; r > cur_best){
+            cur_best = r;
             best = &c;
+        }
     }
 
     if (best == &EDGE_NONE && node->children_list().size() > 0) {
-        return &node->children_list().back();
+        return &(node->children_list()[0]);
     }
 
     return best;
-
-    // if (Debug::debug_best_visits)
-    //     std::cerr << "Choosing best visits. choices are :";
-
-    // int best = 0;
-    // auto best_val = -std::numeric_limits<int>::max();
-
-    // auto& children = node->children_list();
-
-    // for (int i=0; i<node->n_children; ++i)
-    // {
-    //     // if (node->children[i].action == ACTION_NONE)
-    //     //     continue;
-    //     auto v = children[i].reward_avg_visit;
-
-    //     // if (Debug::debug_best_visits)
-    //     //     std::cerr << "Action " << children[i].action << " with " << v << " visits and mean value " << children[i].reward_avg_visit << std::endl;
-
-    //     if (v > best_val)
-    //     {
-    //         best_val = v;
-    //         best = i;
-    //     }
-    // }
-
-    // if (Debug::debug_best_visits)
-    //     std::cerr << "Returning with action " << node->children[best].action << std::endl;
-
-    //return &(node->children[best]);
 }
 
 Edge* Agent::best_val_best(Node* node)
@@ -606,12 +544,14 @@ Edge* Agent::best_val_best(Node* node)
 
     for (auto& c : node->children_list())
     {
-        if (auto r = c.val_best; r > cur_best)
+        if (auto r = c.val_best; r > cur_best) {
+            cur_best = r;
             best = &c;
+        }
     }
 
     if (best == &EDGE_NONE && node->children_list().size() > 0) {
-        return &node->children_list().back();
+        return &(node->children_list()[0]);
     }
 
     return best;
@@ -636,24 +576,7 @@ bool Agent::is_root(Node* node)
 
 bool Agent::is_terminal(Node* node)
 {
-    assert(node == current_node());
-
-    //return node->key & 1;
-    // NOTE: To fake the node having had its "children initialized":
     return node->key & 1;
-    // if (node->key & 1 || (node->n_visits > 1 && node->n_children == 0))
-    //     return true;
-
-    // if (node->key == 0)
-    //     {
-    //     state.generate_clusters();
-    //     auto key = state.generate_key();
-    //     if (key == 0)
-    //     {
-    //         spdlog::debug("Fix this nasty hack");
-    //         return true;
-    //         }
-    //     }
 }
 
 //Sends a cluster as the action
@@ -789,6 +712,11 @@ for (int i=0; i<root->n_children; ++i)
         std::cerr << "Best value " << (int)edges[i].val_best << '\n';
         std::cerr << "Number of visits " << edges[i].n_visits << '\n';
     }
+}
+
+double Agent::get_exploration_cst() const
+{
+    return exploration_cst;
 }
 
 // void Agent::print_debug_cnts(std::ostream& _out) const

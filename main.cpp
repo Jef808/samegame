@@ -3,28 +3,22 @@
 #include <iostream>
 #include <fstream>
 #include <thread>
-#include <future>
-#include <memory>
-#include <sstream>
-
-
+#include <iostream>
+#include <fstream>
 #include <spdlog/fmt/ostr.h>
 #include <spdlog/spdlog.h>
 #include <spdlog/cfg/env.h>
 #include <spdlog/stopwatch.h>
-#include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/sinks/rotating_file_sink.h>
 #include "samegame.h"
 #include "mcts.h"
-
 #include "types.h"
 
 
 using namespace std;
-using namespace literals::chrono_literals;
 using namespace mcts;
 using namespace sg;
-
+//using namespace literals::chrono_literals;
 
 void output_pv(Agent& agent)
 {
@@ -66,7 +60,7 @@ void output_pv(Agent& agent)
     logger->trace("*********** pv over.\n\n    Final Score : {}\n\n\n", pv[ply].r);
 }
 
-ClusterData first_move(Agent& agent, State& state, int iters = MAX_ITER, double exploration_cst = EXPLORATION_CST)
+ClusterData one_move(Agent& agent, State& state, int iters = MAX_ITER, double exploration_cst = EXPLORATION_CST)
 {
     auto logger = spdlog::get("m_logger");
 
@@ -78,7 +72,7 @@ ClusterData first_move(Agent& agent, State& state, int iters = MAX_ITER, double 
 
     spdlog::stopwatch sw;
     auto action = agent.MCTSBestAction();
-    logger->trace("\n    \033[32m{}::first_move:: {:.2} seconds\033[m]", sw);
+    logger->trace("\n    \033[32m::one_move:: {:.2} seconds\033[m]", sw);
     return action;
 }
 
@@ -107,7 +101,6 @@ void changing_roots(State& state)
     }
 
     logger->trace("\n{}\n\nGame Over! Total score is {}, total time taken {}", state, score, sw_glob);
-
 }
 
 int main()
@@ -129,49 +122,48 @@ int main()
     _if.close();
 
     Agent agent(state);
-    agent.set_root();
 
-    agent.set_exploration_constant(2);
 
-    for (int i=0; i < 1500; ++i)
-    {
-        Node* node = agent.tree_policy();
-        Reward reward = agent.rollout_policy(node);
-        agent.backpropagate(node, reward);
-        ++agent.cnt_iterations;
+    agent.debug_tree_policy = true;
 
-        if (i % 100 == 0) {
-            for (const auto& c : agent.root->children) {
-                spdlog::debug("N={}, {}", i, c);
+
+    int _in = 0;
+    double exp_cst = 0.04;
+
+    while (1) {
+
+        spdlog::debug("Exploration Constant is {}\n>>> Enter an increment/decrement (input * 0.005 will be applied)", exp_cst);
+
+        cin >> _in; cin.ignore();
+        exp_cst += 0.005 * _in;
+        agent.reset();
+        agent.set_root();
+
+        spdlog::info("Starting search...");
+        ClusterData cd = one_move(agent, state, 400, exp_cst);
+        logger->trace("Search with exp_cst=\033[35m{}\033[m found \033[35m{}\033[m\nThe other moves are\n", exp_cst, cd.rep);
+        spdlog::debug("Search with exp_cst=\033[35m{}\033[m found \033[35m{}\033[m\nThe other moves are\n", exp_cst, cd.rep);
+
+        std::sort(begin(agent.root->children), end(agent.root->children), [](const auto& a, const auto& b) {
+                return a.reward_avg_visit > b.reward_avg_visit;
+            });
+
+        for (const auto& c : agent.root->children)
+        {
+            if (c.cd.rep == cd.rep) {
+                logger->trace("    \033[35m{}\033[m", c);
+                spdlog::debug("    \033[35m{}\033[m", c);
+            } else {
+                logger->trace("    {}", c);
+                spdlog::debug("    {}", c);
             }
         }
+
+        logger->trace("{}", agent);
     }
 }
 
-// for (int i=0; i<10; ++i)
-//     {
-//         double explo_cst = 0.01 + i * 0.005;
 
-//         for (int i=0; i<1; ++i) {
-//             auto cd = first_move(agent, state, 500, explo_cst);
-//             logger->trace("Search with exp_cst=\033[35m{}\033[m found \033[35m{}\033[m\nTop 5 moves are\n", explo_cst, cd.rep);
-
-//             // NOTE: it's an array so there's 0-int'd members padding the tail
-//             std::sort(begin(agent.root->children), end(agent.root->children), [](const auto& a, const auto& b) {
-//                 return a.reward_avg_visit > b.reward_avg_visit;
-//             });
-
-//             for (int i=0; i<5; ++i)
-//             {
-//                 if (agent.root->children[i].cd.rep == cd.rep)
-//                     logger->trace("    \033[35m{}\033[m", agent.root->children[i]);
-//                 else
-//                     logger->trace("    {}", agent.root->children[i]);
-//             }
-
-//             logger->trace("{}", agent);
-//         }
-//     }
 
 
 // void test_ucb_functions(Agent& agent, State& state, int iters)

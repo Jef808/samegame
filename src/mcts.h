@@ -53,13 +53,13 @@ public:
 
   ClusterData MCTSBestAction();
   void step();
-  void create_root();
+  void set_root();
   bool computation_resources();
   Node* tree_policy();
   Reward rollout_policy(Node* node);    // TODO: If the playout hits a branch that clears the grid, return it from the whole algorithm.
   void backpropagate(Node* node, Reward r);
 
-  Reward ucb(Node* node, Edge& edge);
+  Reward ucb(Node* node, const Edge& edge);
 
   Edge* best_ucb(Node* node);     // TODO : refactor into only one method taking a parameter
   Edge* best_visits(Node* node);
@@ -79,7 +79,7 @@ public:
   Node* get_node();
   int get_ply() const;
 
-  Reward random_simulation(ClusterData* cd);
+  Reward random_simulation(ClusterData cd);
   Reward sg_value(const ClusterData& cd);
   Reward evaluate_terminal();
   Reward value_to_reward(double);
@@ -104,30 +104,31 @@ public:
   static std::string debug_node_stats(const Node&);
   void print_final_score() const;
 
-  // Counters for Monte Carlo
+  // Data
+  State& state;
+  Node* root;
+
+  // Counters for bookkeeping
   int cnt_iterations;
   int cnt_simulations;
   int cnt_descent;
   int cnt_explored_nodes;
   int cnt_rollout;
   int cnt_new_nodes;
+  int cnt_new_roots;
   // Tree statistics
   double value_global_max;
   double value_global_min;
   double value_global_avg;
   int    global_max_depth;
 
-  // Data
-  State& state;
-  Node* root;
-
     // To keep track of the data during the search (indexed by ply)
-  // They are all 0-value initialized in the create_root() method
+  // They are all 0-value initialized in the set_root() method
   // NOTE It might be too much to store all of that on the stack...
-  std::array<Node*, MAX_PLY>        nodes;       // Elements are stored in the MCTSLookupTable
-  std::array<Edge*, MAX_PLY>        actions;     // Elements are stored in their parent node
-  std::array<StateData, MAX_PLY>    states;      // To keep history of states along a branch (stored on the heap)
-  std::array<SearchData, MAX_PLY>   stack;       // To perform the playout samplings without creating new nodes
+  std::array<Node*, MAX_PLY>        nodes{ };       // Elements are stored in the MCTSLookupTable
+  std::array<Edge*, MAX_PLY>        actions{ };     // Elements are stored in their parent node
+  std::array<StateData, MAX_PLY>    states{ };      // To keep history of states along a branch (stored on the heap)
+  std::array<SearchData, MAX_PLY>   stack{ };       // To perform the playout samplings without creating new nodes
 private:
   int ply;
   double exploration_cst = EXPLORATION_CST;
@@ -138,14 +139,14 @@ private:
 struct Edge {
   sg::ClusterData  cd;
   int     sg_value_from_root;
-  int     n_visits;
   int     val_best;
   Reward  reward_avg_visit;
+  int     n_visits;
   bool    decisive;                              // If it is a known win etc...
 };
 
 struct Node {
-  using Edges = std::array<Edge, MAX_CHILDREN>;
+  using Edges = std::vector<Edge>;
   // NOTE: Careful when iterating through edges, an Edge object doesn't have
   // a 'zero' value (so may be initialized with random noise).
   // NOTE: after the init_children() method, the children will be ordered by
@@ -156,6 +157,7 @@ struct Node {
   int      n_expanded_children;
   Edge*    parent;    // NOTE: There could be many with repeated states... better to use our edge stack
   Edges    children;
+  int      sg_value_from_root;
 
   Edges& children_list() { return children; }
 };

@@ -66,60 +66,6 @@ void output_pv(Agent& agent)
     logger->trace("*********** pv over.\n\n    Final Score : {}\n\n\n", pv[ply].r);
 }
 
-void test_avg_values_over_time(Agent& agent, State& state, int iters, double exp_const)
-{
-
-    auto logger = spdlog::get("m_logger");
-
-    logger->trace("*************************************\n\n     Starting a new run for {} iterations\n\n***********************************************\n\n", iters);
-
-    agent.reset();
-    agent.set_exploration_constant(exp_const);
-
-    agent.create_root();
-
-    spdlog::stopwatch sw;
-
-    // Averages the rollout rewards over 500 consecutive tries. See if it improves.
-    std::vector<double> averages;
-    double cur_avg = 0;
-    int cnt = 0;
-    int n_avg = 0;
-
-    for (int k=0; k<iters; ++k)
-    {
-        assert(agent.is_root(agent.current_node()));
-
-        Node* node = agent.tree_policy();
-        Reward reward = agent.rollout_policy(node);
-
-        ++cnt;
-        cur_avg += (reward - cur_avg) / cnt;
-
-        agent.backpropagate(node, reward);
-        ++agent.cnt_iterations;
-
-
-        // Make 10 groups
-        if (cnt == int(iters / 10.0)) {
-            averages.push_back(cur_avg);
-            cnt = 0;
-            cur_avg = 0;
-        }
-    }
-
-    logger->trace("\nTime taken : {:.2} seconds", sw);
-    logger->trace("average rewards for {} iters bundled as 10 averages over {} iters each (exp_const = {}):\n    ", iters, int(iters/10.0), exp_const);
-    int i=1;
-    for (auto avg : averages) {
-        logger->trace("N={}: avg_value of {}", i * int(iters/10.0), avg);
-        ++i;
-    }
-    logger->trace("{}", agent);
-
-    //output_pv(agent);
-}
-
 ClusterData first_move(Agent& agent, State& state, int iters = MAX_ITER, double exploration_cst = EXPLORATION_CST)
 {
     auto logger = spdlog::get("m_logger");
@@ -128,7 +74,7 @@ ClusterData first_move(Agent& agent, State& state, int iters = MAX_ITER, double 
     agent.set_max_iterations(iters);
     agent.set_exploration_constant(exploration_cst);
 
-    agent.create_root();
+    agent.set_root();
 
     spdlog::stopwatch sw;
     auto action = agent.MCTSBestAction();
@@ -136,42 +82,70 @@ ClusterData first_move(Agent& agent, State& state, int iters = MAX_ITER, double 
     return action;
 }
 
-
-int main(int args, char* argv[])
+void changing_roots(State& state)
 {
-    sg::State::init();
+    auto logger = spdlog::get("m_logger");
+    Agent agent(state);
+    agent.set_max_iterations(1000);
+
+    int score = 0;
+
+    // NOTE: Calling set_root inside of MCTSBestAction! If called twice in a row, it messes up the state!!
+
+    logger->trace("Starting search with 1000 iterations per move");
+    spdlog::stopwatch sw_glob;
+    while (!state.is_terminal())
+    {
+        ClusterData action = agent.MCTSBestAction();
+
+        if (action.rep == CELL_NONE)
+            break;
+
+        score += (action.size - 2) * (action.size - 2);
+
+        agent.apply_action(action);
+    }
+
+    logger->trace("\n{}\n\nGame Over! Total score is {}, total time taken {}", state, score, sw_glob);
+
+}
+
+int main()
+{
+    State::init();
+    auto logger = spdlog::rotating_logger_mt("m_logger", "logs/logfile.txt", 1048576 * 5, 3);
+    auto console = spdlog::default_logger();
 
     spdlog::flush_every(std::chrono::seconds(3));
 
-    auto logger = spdlog::rotating_logger_mt("m_logger", "logs/logfile.txt", 1048576 * 5, 3, true);
-
-    auto console = spdlog::default_logger();
-    spdlog::debug("test");
     console->set_level(spdlog::level::debug);
     logger->set_level(spdlog::level::trace);
     //auto graph = spdlog::get("dotviz");
 
-    int ply = 1;
-    array<sg::StateData, 128> states { };
-    sg::StateData sd_root = states[1];
+    sg::StateData sd_root{ };
     ifstream _if;
     _if.open("../data/input.txt", ios::in);
-    sg::State state (_if, &sd_root);
+    sg::State state (_if, sd_root);
     _if.close();
 
     Agent agent(state);
-    agent.create_root();
+    agent.set_root();
 
-    //test_avg_values_over_time(agent, state, 2000, 0.040);
+    agent.set_exploration_constant(2);
 
-    int _in = 0;
-    while (_in == 0)
+    for (int i=0; i < 1500; ++i)
     {
-        agent.step();
+        Node* node = agent.tree_policy();
+        Reward reward = agent.rollout_policy(node);
+        agent.backpropagate(node, reward);
+        ++agent.cnt_iterations;
 
-        cin >> _in;
+        if (i % 100 == 0) {
+            for (const auto& c : agent.root->children) {
+                spdlog::debug("N={}, {}", i, c);
+            }
+        }
     }
-
 }
 
 // for (int i=0; i<10; ++i)
@@ -207,7 +181,7 @@ int main(int args, char* argv[])
 
 //     logger->trace("*************************************\n\n     Testing ucb for {} iterations\n\n***********************************************\n\n", iters);
 
-//     agent.create_root();
+//     agent.set_root();
 
 //     // for (int i=0; i<agent.root->n_children; ++i)
 //     // {

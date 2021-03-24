@@ -32,10 +32,13 @@ class State {
 public:
   static void init();
 
-  explicit State(std::istream&, StateData*);
+  explicit State(std::istream&, StateData&);
   State(const State&) = delete;
   State& operator=(const State&) = delete;
 
+  void       init_ccounter();
+  Key        generate_key() const;
+  Key        generate_key(const Cluster&) const;
   // Game interface
   bool       is_terminal() const;
   bool       is_empty() const;
@@ -47,11 +50,7 @@ public:
   void       apply_action(const ClusterData&, StateData&);
   void       apply_action_blind(Action, StateData&);
   void       undo_action(Action);
-  void       undo_action(const ClusterData& cd);
-
-  // Quick versions
-  bool is_terminal(Key) const;
-
+  void       undo_action(const ClusterData&);
 
   // Game implementation
   void      pull_cells_down();
@@ -61,15 +60,16 @@ public:
   void      kill_cluster(Cluster*);    // TODO Just pick one of those, also make it nonmember?
   void      kill_cluster(const Cluster*);
 
-  // Game data
-  void          init_ccounter();
-  Key           generate_key() const;
-  Key           key() const;
+  // Quick bitwise versions
+  static bool is_terminal(Key);
+  static Key apply_action(Key, Key);
 
+  // Game data
   StateData*    p_data;
   ColorsCounter colors;
+  Key           key() const;
 
-  Grid& cells() const { return p_data->cells; }
+  const Grid& cells() const { return p_data->cells; }
 
   // Debug
   friend std::ostream& operator<<(std::ostream&, const State&);

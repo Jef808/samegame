@@ -23,6 +23,7 @@
 
 namespace sg {
 
+Cluster CLUSTER_NONE = {CELL_NONE, {}};
 
 //**************************  Disjoint Union Structure  ********************************/
 
@@ -79,68 +80,91 @@ namespace Zobrist {
 
     std::array<Key, 1126> ndx_keys { 0 }; // First entry = 0 for a trivial action
 
+    Key cellColorKey(Cell cell, Color color) {
+        return ndx_keys[cell * color];
+    }
+
     Key clusterKey(const ClusterData& cd) {
         return ndx_keys[cd.rep * cd.color];
     }
-    Key rarestColorKey(const State& state) {
-        auto rarest_color = *std::min_element(state.colors.begin() + 1, state.colors.end());
-        return rarest_color << 1;
-    }
+    // Key rarestColorKey(const State& state) {
+    //     auto rarest_color = *std::min_element(state.colors.begin() + 1, state.colors.end());
+    //     return rarest_color << 1;
+    // }
     Key terminalKey(const State& state) {
         return state.is_terminal();
     }
 
 } // namespace Zobrist
 
-
 //********************************  Bitwise methods  ***********************************/
 
-// NOTE It is expected that the r_cluster member is a reference to the
-// current list of clusters when calling generate_key(). Otherwise it will
-// generate the key of some other state. Note also that the key doesn't completely
-// determine the state, but most likely is good enough. We could have a 'next state
-// lookup table' taking current_key ^ cluster_key to the key of of the state we get
-// when applying that cluster (storing the cluster's known value in there?)
-//
-// Generate a Zobrist hash from the list of ClusterData objects
+// Generate a Zobrist hash from the grid
 Key State::generate_key() const
 {
-    Key key = 0;
-
     generate_clusters();
-    for (const auto& cluster : r_clusters)
+
+    Key key = 0;
+    uint8_t ndx = 0;
+
+    for (auto cell : p_data->cells)
     {
-        if (cluster.members.size() > 1)
-        {
-            //auto rep = *std::min_element(begin(cluster.members), end(cluster.members));
-            key ^= Zobrist::clusterKey({cluster.rep, p_data->cells[cluster.rep]});
+        if (cell != COLOR_NONE) {
+            key ^= Zobrist::cellColorKey(ndx, cell);
         }
+        ++ndx;
     }
 
-    if (key == 0)
-        return 1;
+    key ^= Zobrist::terminalKey(*this);
+
+    return key;
+
+    // for (const auto& cluster : r_clusters)
+    // {
+    //     if (cluster.members.size() > 1)
+    //     {
+    //         //auto rep = *std::min_element(begin(cluster.members), end(cluster.members));
+    //         key ^= Zobrist::clusterKey({cluster.rep, p_data->cells[cluster.rep]});
+    //     }
+    // }
+
     //key ^= Zobrist::rarestColorKey(*this);
     //key ^= Zobrist::terminalKey(*this);
+}
+
+Key State::generate_key(const Cluster& cluster) const
+{
+    if (cluster.members.size() < 2)
+        return 0;
+
+    Color cluster_color = p_data->cells[cluster.members.front()];
+    Key key = 0;
+    for (auto cell : cluster.members)
+        key ^= Zobrist::cellColorKey(cell, cluster_color);
 
     return key;
 }
 
-bool State::is_terminal(Key key) const
+bool State::is_terminal(Key key)
 {
     return key & 1;
 }
 
+Key State::apply_action(Key state_key, Key action_key)
+{
+    return 0;
+}
+
 Key State::key() const
 {
-    if (p_data->key == 0)
-        generate_key();
+    // if (p_data->key == 0)
+    //     p_data->key = generate_key();
     return p_data->key;
 }
 
 //*************************************** Game logic **********************************/
 
-void State::
-init()
+void State::init()
 {
     std::random_device rd;
     std::uniform_int_distribution<unsigned long long> dis(
@@ -148,13 +172,12 @@ init()
         std::numeric_limits<std::uint64_t>::max());
 
     for (int i = 1; i < 1126; ++i) {
-        Zobrist::ndx_keys[i] = ((dis(rd) >> 4) << 4); // Reserve first bit for terminal,
-                                                      // next 3 bits for rarest color
+        Zobrist::ndx_keys[i] = ((dis(rd) >> 1) << 1); // Reserve first bit for terminal
     }
 }
 
-State::State(std::istream& _in, StateData* sd)
-    : p_data(sd)
+State::State(std::istream& _in, StateData& sd)
+    : p_data(&sd)
     , colors{0}
     , r_clusters(DSU::cl)
 {
@@ -319,8 +342,8 @@ Cluster* State::get_cluster(Cell cell) const
     generate_clusters();
 
     if (cell == MAX_CELLS || p_data->cells[cell] == 0) {
-        spdlog::warn("Call made to get_cluster with invalid cell {}, returning nullptr", (int)cell);
-        return nullptr;
+        spdlog::warn("Call made to get_cluster with invalid cell {}, returning CLUSTER_NONE", (int)cell);
+        return &CLUSTER_NONE;
     }
 
     auto it = std::find_if(DSU::cl.begin(), DSU::cl.end(), [c = cell](const auto& cluster) {
@@ -330,8 +353,8 @@ Cluster* State::get_cluster(Cell cell) const
     if (it != DSU::cl.end()) {
         return &(*it);
     } else {
-        spdlog::debug("Returning nullptr from get_cluster!\nState was \n{}\n", State_Action{*this});
-        return nullptr;
+        spdlog::debug("Returning CLUSTER_NONE from get_cluster!\nState was \n{}\n", State_Action{*this});
+        return &CLUSTER_NONE;
     }
 }
 
@@ -413,93 +436,27 @@ ActionDVec State::valid_actions_data() const
     generate_clusters();
 
     ActionDVec ret { };
-    // if (r_clusters.empty())
-    //     return ret;
-    for (const auto& cluster : r_clusters) {
-        uint8_t size = cluster.members.size();
 
-        if (cluster.rep == CELL_NONE && size > 0) {
-            spdlog::debug("CELL_NONE cluster with size {}:\n    ", size);
-            for (auto m : cluster.members) {
-                spdlog::debug("{}, ", m);
+    for (auto& cluster : r_clusters) {
+        if (auto sz = cluster.members.size(); sz > 1) {
+            if (Cell rep = cluster.members.front(); rep != CELL_NONE) {
+                if (Color color = p_data->cells[rep]; color != COLOR_NONE) {
+                    ret.emplace_back(rep, color, sz);
+                }
             }
-        }
-        if (size > 1)
-        {
-            //Cell rep = *std::min_element(cluster.members.begin(), cluster.members.end());
-            ClusterData cd = { cluster.rep, cells()[cluster.rep], size };
-            ret.push_back(cd);
         }
     }
     return ret;
 }
 
-// VecClusterV State::valid_actions_clusters() const
-// {
-//     VecClusterV ret { };
-//     for (const auto& cluster : r_clusters) {
-//         ClusterV cv;
 
-//         if (cluster.members.size() > 1)
-//         {
-//             std::copy(cluster.members.begin(), cluster.members.end(), back_inserter(cv.members));
-//             ret.push_back(cv);
-//         }
-//     }
-//     return ret;
-// }
 
-// // TODO Just call both apply_action methods the same but one takes a pointer to a cluster.
-// //
-// // NOTE: Applicable when we have just generated the clusters
-// void State::apply_action_cluster(const Cluster* p_cluster, StateData& sd)
-// {
-//     sd.previous = p_data;                    // Provide info of current state.
-//     sd.cells = cells();                      // Copy the current grid on the provided StateData object
-//     //Key key = p_data->key;
-//     p_data = &sd;
 
-//     // Update the grid in the new StateData object
-//     // FIXME I hate doing this but for now I need to recalculate the cluster
-//     //
-//     // generate_clusters();
-//     //
-//     // NOTE: This is to be used in the rollout phase. The agent will just have asked for
-//     // all valid actions so they will be generated already.
-
-//     kill_cluster(p_cluster);             // The color counter is decremented here
-//     pull_cells_down();
-//     pull_cells_left();
-
-//     // TODO Make necessary computations and update the keys.
-//     generate_clusters();
-//     p_data->key = generate_key();
-// }
-
-// // NOTE: Applicable when we have just generated the clusters
-// void State::apply_action_gen_clusters(Action action, StateData& sd)
-// {
-//     sd.previous = p_data;                    // Provide info of current state.
-//     sd.cells = cells();                      // Copy the current grid on the provided StateData object
-//     p_data = &sd;
-
-//     auto* cluster = get_cluster(action);
-//     kill_cluster(cluster);                   // The color counter is decremented here
-//     pull_cells_down();
-//     pull_cells_left();
-
-//     // TODO Make necessary computations and update the keys.
-//     generate_clusters();
-//     p_data->key = generate_key();
-
-//     // p_data->key = key();
-// }
 
 void State::apply_action(const ClusterData& cd, StateData& sd)
 {
     sd.previous = p_data;                    // Provide info of current state.
     sd.cells = cells();                      // Copy the current grid on the provided StateData object
-    //Key key = p_data->key;
     p_data = &sd;
 
     // Update the grid in the new StateData object

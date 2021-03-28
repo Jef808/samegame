@@ -14,6 +14,7 @@ struct StateData {
   Key        key           = 0;
   int        ply           = 1;
   Grid       cells         = {COLOR_NONE};
+  int n_empty_rows         = 0;
 
   StateData* previous      = nullptr;
 };
@@ -45,6 +46,7 @@ public:
   ActionVec  valid_actions() const;
   VecClusterV valid_actions_clusters() const;
   void       apply_action(const ClusterData&, StateData&);
+  void       apply_action_oneway(const ClusterData&);
   ClusterData apply_random_action();
   void       undo_action(Action);
   void       undo_action(const ClusterData&);
@@ -53,11 +55,14 @@ public:
   //static Key apply_action(Key, Key);
 
   // Game implementation
-  void      pull_cells_down();
-  void      pull_cells_left();
-  void      generate_clusters() const;
-  void      kill_cluster(Cluster*);
-  Cluster * get_cluster(Cell) const;
+  void        pull_cells_down();
+  void        pull_cells_left();
+  void        generate_clusters() const;
+  void        generate_clusters_old() const;
+  void        kill_cluster(Cluster*);
+  Cluster*    get_cluster(Cell) const;
+  ClusterData kill_cluster_blind(Cell, Color);   // Used to apply a random action for simulations
+  ClusterData kill_random_valid_cluster();
 
   // Game data
   StateData*    p_data;
@@ -70,13 +75,14 @@ public:
   friend std::ostream& operator<<(std::ostream&, const State&);
   friend struct State_Action;
 
-  std::string display(const State&, Output = Output::CONSOLE) const;
+  void display(Output = Output::CONSOLE) const;
+  void view_clusters(std::ostream&);
 
 private:
   ClusterList& r_clusters;                // A reference to the implementation's DSU
   void init_ccounter();                   // TODO: All methods that require generate_cluster() should be private
   bool check_terminal() const;            // Only used on initialization (if no key available)
-  ClusterData kill_cluster_blind(Cell, Color);   // Used to apply a random action for simulations
+
 };
 
 // For debugging

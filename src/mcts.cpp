@@ -332,9 +332,8 @@ Reward Agent::rollout_policy(Node* node)
 
         // TODO: Decide if the global max/min values are actually needed (was initially for addressing
         //       the problem of normalizing rewards between 0 and 1).
-
         if (node->children.back().val_best < value_global_min) {
-        value_global_min = node->children.back().val_best;
+            value_global_min = node->children.back().val_best;
         }
     }
     if (rollout_reward > value_global_max) {
@@ -418,7 +417,7 @@ void Agent::init_children()
 
 // First idea would be to not save or lookup anything, but save the next-to-last state
 // (really, state-before-known-win/lose) to start building a table of alphas and betas.
-Reward Agent::random_simulation(ClusterData _cd)
+Reward Agent::random_simulation_old(ClusterData _cd)
 {
     Reward res = stack[ply].r = 0;
     int depth=0;
@@ -449,13 +448,29 @@ Reward Agent::random_simulation(ClusterData _cd)
         --depth;
     }
 
-    // while (stack[ply-1].current_action != ACTION_NONE) {            // Use the sentinel we set up for this
-    //     undo_action();                                           // Simply reverts the state's grid to the previous one, using stack[ply-1].cd to restore the number of colors
-    //     --cnt;
-    // }
+    return res;
+}
 
-    // Restore the changed value
-    //stack[ply-1].current_action = last_action;
+Reward Agent::random_simulation(ClusterData _cd)
+{
+    StateData sd_backup = *state.p_data;
+    // Do until we hit a terminal state or the maximum depth
+    // NOTE: Since we do not compute the keys for efficiency, we can't use is_terminal method
+    //ClusterData cluster = _cd;
+
+    _cd = state.kill_cluster_blind(_cd.rep, _cd.color);
+    Reward res = sg_value(_cd);
+    int cnt = 0;
+
+    while (_cd.size > 1)
+    {
+        ++cnt;
+        _cd = state.kill_random_valid_cluster();
+        res += sg_value(_cd);
+     }
+
+    res += evaluate_terminal();
+    *(state.p_data) = sd_backup;
 
     return res;
 }
@@ -639,7 +654,7 @@ Reward Agent::evaluate_terminal()
 
 Reward Agent::sg_value(const ClusterData& cd)
 {
-    return (cd.size - 2) * (cd.size - 2);
+    return (cd.size - 2) * (cd.size - 2) * (cd.size > 1);
 }
 
 // std::vector<Action> Agent::get_edges_from_root() const

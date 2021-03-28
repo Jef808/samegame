@@ -6,11 +6,12 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS on)
 set(CMAKE_CXX_COMPILER /usr/bin/g++)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED 20)
-#set(CMAKE_CXX_FLAGS_DEBUG "${CMAXE_CXX_FLAGS} -Wall -g")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
 set(CMAKE_VERBOSE_MAKEFILE on)
 
-#set(CMAKE_BUILD_TYPE DEBUG)
+#set(CMAKE_BUILD_TYPE Debug)
+set(CMAKE_BUILD_TYPE Release)
 
 set(DATA_DIR ${PROJECT_SOURCE_DIR}/data)
 set(SRC_DIR ${PROJECT_SOURCE_DIR}/src)
@@ -75,5 +76,19 @@ target_include_directories(test_pv PUBLIC ${SRC_DIR} ${INC_DIR} ${DATA_DIR})
 add_custom_target(play_game SPDLOG_LEVEL=debug,m_logger=trace, && ./test_pv
   DEPENDS test_pv
   BYPRODUCTS log/game.txt)
+
+add_executable(test_clusters tests/display_clusters.cpp ${SOURCES})
+target_link_libraries(test_clusters spdlog::spdlog)
+target_include_directories(test_clusters PUBLIC ${SRC_DIR} ${INC_DIR} ${DATA_DIR})
+add_custom_target(run_test_clusters SPDLOG_LEVEL=debug,m_logger=trace, && ./test_clusters
+  DEPENDS test_clusters
+  BYPRODUCTS log/game.txt)
+
+add_executable(test_random_simulation tests/test_random_simulation.cpp ${SOURCES})
+target_link_libraries(test_random_simulation spdlog::spdlog)
+target_include_directories(test_random_simulation PUBLIC ${SRC_DIR} ${INC_DIR} ${DATA_DIR})
+add_custom_target(run_test_simul SPDLOG_LEVEL=debug,m_logger=trace, && ./test_random_sim
+  DEPENDS test_random_simulation
+  BYPRODUCTS log/test_random_simul.txt)
 
 add_custom_target(log_clean rm ${PROJECT_SOURCE_DIR}/build/logs -r)

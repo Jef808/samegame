@@ -97,7 +97,11 @@ void changing_roots(State& state)
 
         score += (action.size - 2) * (action.size - 2);
 
+        spdlog::info("\n{}\n", state);
         agent.apply_action(action);
+        this_thread::sleep_for(500ms);
+        spdlog::info("\n{}\n", State_Action{ state, action.rep, state.get_cluster(action.rep) });
+
     }
 
     logger->trace("\n{}\n\nGame Over! Total score is {}, total time taken {}", state, score, sw_glob);

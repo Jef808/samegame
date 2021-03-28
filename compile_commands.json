@@ -1,32 +1,77 @@
 [
 {
   "directory": "/home/jfa/code/projects/samegame/build",
-  "command": "/usr/bin/g++    -Wall -g -std=gnu++2a -o CMakeFiles/debuglib.dir/src/debug.cpp.o -c /home/jfa/code/projects/samegame/src/debug.cpp",
-  "file": "/home/jfa/code/projects/samegame/src/debug.cpp"
+  "command": "/usr/bin/clang++ -DSPDLOG_COMPILED_LIB -I/home/jfa/code/projects/samegame/src -I/home/jfa/code/projects/samegame/include -I/home/jfa/code/projects/samegame/data  -Wall -g -std=gnu++2a -o CMakeFiles/test_clusters.dir/tests/display_clusters.cpp.o -c /home/jfa/code/projects/samegame/tests/display_clusters.cpp",
+  "file": "/home/jfa/code/projects/samegame/tests/display_clusters.cpp"
 },
 {
   "directory": "/home/jfa/code/projects/samegame/build",
-  "command": "/usr/bin/g++  -I/home/jfa/code/projects/samegame/src -I/home/jfa/code/projects/samegame/include  -Wall -g -std=gnu++2a -o CMakeFiles/sglib.dir/src/samegame.cpp.o -c /home/jfa/code/projects/samegame/src/samegame.cpp",
-  "file": "/home/jfa/code/projects/samegame/src/samegame.cpp"
-},
-{
-  "directory": "/home/jfa/code/projects/samegame/build",
-  "command": "/usr/bin/g++  -I/home/jfa/code/projects/samegame/src -I/home/jfa/code/projects/samegame/include -I/home/jfa/code/projects/samegame/data  -Wall -g -std=gnu++2a -o CMakeFiles/main.dir/main.cpp.o -c /home/jfa/code/projects/samegame/main.cpp",
-  "file": "/home/jfa/code/projects/samegame/main.cpp"
-},
-{
-  "directory": "/home/jfa/code/projects/samegame/build",
-  "command": "/usr/bin/g++  -I/home/jfa/code/projects/samegame/src -I/home/jfa/code/projects/samegame/include -I/home/jfa/code/projects/samegame/data  -Wall -g -std=gnu++2a -o CMakeFiles/main.dir/src/debug.cpp.o -c /home/jfa/code/projects/samegame/src/debug.cpp",
-  "file": "/home/jfa/code/projects/samegame/src/debug.cpp"
-},
-{
-  "directory": "/home/jfa/code/projects/samegame/build",
-  "command": "/usr/bin/g++  -I/home/jfa/code/projects/samegame/src -I/home/jfa/code/projects/samegame/include -I/home/jfa/code/projects/samegame/data  -Wall -g -std=gnu++2a -o CMakeFiles/main.dir/src/mcts.cpp.o -c /home/jfa/code/projects/samegame/src/mcts.cpp",
+  "command": "/usr/bin/clang++ -DSPDLOG_COMPILED_LIB -I/home/jfa/code/projects/samegame/src -I/home/jfa/code/projects/samegame/include -I/home/jfa/code/projects/samegame/data  -Wall -g -std=gnu++2a -o CMakeFiles/test_clusters.dir/src/mcts.cpp.o -c /home/jfa/code/projects/samegame/src/mcts.cpp",
   "file": "/home/jfa/code/projects/samegame/src/mcts.cpp"
 },
 {
   "directory": "/home/jfa/code/projects/samegame/build",
-  "command": "/usr/bin/g++  -I/home/jfa/code/projects/samegame/src -I/home/jfa/code/projects/samegame/include -I/home/jfa/code/projects/samegame/data  -Wall -g -std=gnu++2a -o CMakeFiles/main.dir/src/samegame.cpp.o -c /home/jfa/code/projects/samegame/src/samegame.cpp",
+  "command": "/usr/bin/clang++ -DSPDLOG_COMPILED_LIB -I/home/jfa/code/projects/samegame/src -I/home/jfa/code/projects/samegame/include -I/home/jfa/code/projects/samegame/data  -Wall -g -std=gnu++2a -o CMakeFiles/test_clusters.dir/src/samegame.cpp.o -c /home/jfa/code/projects/samegame/src/samegame.cpp",
+  "file": "/home/jfa/code/projects/samegame/src/samegame.cpp"
+},
+{
+  "directory": "/home/jfa/code/projects/samegame/build",
+  "command": "/usr/bin/clang++ -DSPDLOG_COMPILED_LIB -I/home/jfa/code/projects/samegame/src -I/home/jfa/code/projects/samegame/include -I/home/jfa/code/projects/samegame/data  -Wall -g -std=gnu++2a -o CMakeFiles/test_random_simulation.dir/tests/test_random_simulation.cpp.o -c /home/jfa/code/projects/samegame/tests/test_random_simulation.cpp",
+  "file": "/home/jfa/code/projects/samegame/tests/test_random_simulation.cpp"
+},
+{
+  "directory": "/home/jfa/code/projects/samegame/build",
+  "command": "/usr/bin/clang++ -DSPDLOG_COMPILED_LIB -I/home/jfa/code/projects/samegame/src -I/home/jfa/code/projects/samegame/include -I/home/jfa/code/projects/samegame/data  -Wall -g -std=gnu++2a -o CMakeFiles/test_random_simulation.dir/src/mcts.cpp.o -c /home/jfa/code/projects/samegame/src/mcts.cpp",
+  "file": "/home/jfa/code/projects/samegame/src/mcts.cpp"
+},
+{
+  "directory": "/home/jfa/code/projects/samegame/build",
+  "command": "/usr/bin/clang++ -DSPDLOG_COMPILED_LIB -I/home/jfa/code/projects/samegame/src -I/home/jfa/code/projects/samegame/include -I/home/jfa/code/projects/samegame/data  -Wall -g -std=gnu++2a -o CMakeFiles/test_random_simulation.dir/src/samegame.cpp.o -c /home/jfa/code/projects/samegame/src/samegame.cpp",
+  "file": "/home/jfa/code/projects/samegame/src/samegame.cpp"
+},
+{
+  "directory": "/home/jfa/code/projects/samegame/build",
+  "command": "/usr/bin/clang++ -DSPDLOG_COMPILED_LIB -I/home/jfa/code/projects/samegame/src -I/home/jfa/code/projects/samegame/include -I/home/jfa/code/projects/samegame/data  -Wall -g -std=gnu++2a -o CMakeFiles/test_pv.dir/tests/test_pv.cpp.o -c /home/jfa/code/projects/samegame/tests/test_pv.cpp",
+  "file": "/home/jfa/code/projects/samegame/tests/test_pv.cpp"
+},
+{
+  "directory": "/home/jfa/code/projects/samegame/build",
+  "command": "/usr/bin/clang++ -DSPDLOG_COMPILED_LIB -I/home/jfa/code/projects/samegame/src -I/home/jfa/code/projects/samegame/include -I/home/jfa/code/projects/samegame/data  -Wall -g -std=gnu++2a -o CMakeFiles/test_pv.dir/src/mcts.cpp.o -c /home/jfa/code/projects/samegame/src/mcts.cpp",
+  "file": "/home/jfa/code/projects/samegame/src/mcts.cpp"
+},
+{
+  "directory": "/home/jfa/code/projects/samegame/build",
+  "command": "/usr/bin/clang++ -DSPDLOG_COMPILED_LIB -I/home/jfa/code/projects/samegame/src -I/home/jfa/code/projects/samegame/include -I/home/jfa/code/projects/samegame/data  -Wall -g -std=gnu++2a -o CMakeFiles/test_pv.dir/src/samegame.cpp.o -c /home/jfa/code/projects/samegame/src/samegame.cpp",
+  "file": "/home/jfa/code/projects/samegame/src/samegame.cpp"
+},
+{
+  "directory": "/home/jfa/code/projects/samegame/build",
+  "command": "/usr/bin/clang++ -DSPDLOG_COMPILED_LIB -I/home/jfa/code/projects/samegame/src -I/home/jfa/code/projects/samegame/include -I/home/jfa/code/projects/samegame/data  -Wall -g -std=gnu++2a -o CMakeFiles/test_avg_val.dir/tests/test_avg_val_time.cpp.o -c /home/jfa/code/projects/samegame/tests/test_avg_val_time.cpp",
+  "file": "/home/jfa/code/projects/samegame/tests/test_avg_val_time.cpp"
+},
+{
+  "directory": "/home/jfa/code/projects/samegame/build",
+  "command": "/usr/bin/clang++ -DSPDLOG_COMPILED_LIB -I/home/jfa/code/projects/samegame/src -I/home/jfa/code/projects/samegame/include -I/home/jfa/code/projects/samegame/data  -Wall -g -std=gnu++2a -o CMakeFiles/test_avg_val.dir/src/mcts.cpp.o -c /home/jfa/code/projects/samegame/src/mcts.cpp",
+  "file": "/home/jfa/code/projects/samegame/src/mcts.cpp"
+},
+{
+  "directory": "/home/jfa/code/projects/samegame/build",
+  "command": "/usr/bin/clang++ -DSPDLOG_COMPILED_LIB -I/home/jfa/code/projects/samegame/src -I/home/jfa/code/projects/samegame/include -I/home/jfa/code/projects/samegame/data  -Wall -g -std=gnu++2a -o CMakeFiles/test_avg_val.dir/src/samegame.cpp.o -c /home/jfa/code/projects/samegame/src/samegame.cpp",
+  "file": "/home/jfa/code/projects/samegame/src/samegame.cpp"
+},
+{
+  "directory": "/home/jfa/code/projects/samegame/build",
+  "command": "/usr/bin/clang++ -DSPDLOG_COMPILED_LIB -I/home/jfa/code/projects/samegame/src -I/home/jfa/code/projects/samegame/include -I/home/jfa/code/projects/samegame/data  -Wall -g -std=gnu++2a -o CMakeFiles/main.dir/main.cpp.o -c /home/jfa/code/projects/samegame/main.cpp",
+  "file": "/home/jfa/code/projects/samegame/main.cpp"
+},
+{
+  "directory": "/home/jfa/code/projects/samegame/build",
+  "command": "/usr/bin/clang++ -DSPDLOG_COMPILED_LIB -I/home/jfa/code/projects/samegame/src -I/home/jfa/code/projects/samegame/include -I/home/jfa/code/projects/samegame/data  -Wall -g -std=gnu++2a -o CMakeFiles/main.dir/src/mcts.cpp.o -c /home/jfa/code/projects/samegame/src/mcts.cpp",
+  "file": "/home/jfa/code/projects/samegame/src/mcts.cpp"
+},
+{
+  "directory": "/home/jfa/code/projects/samegame/build",
+  "command": "/usr/bin/clang++ -DSPDLOG_COMPILED_LIB -I/home/jfa/code/projects/samegame/src -I/home/jfa/code/projects/samegame/include -I/home/jfa/code/projects/samegame/data  -Wall -g -std=gnu++2a -o CMakeFiles/main.dir/src/samegame.cpp.o -c /home/jfa/code/projects/samegame/src/samegame.cpp",
   "file": "/home/jfa/code/projects/samegame/src/samegame.cpp"
 }
 ]

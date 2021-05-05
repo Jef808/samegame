@@ -45,7 +45,6 @@ inline std::ostream& operator<<(std::ostream& _out, const Cluster_T<_Index>& clu
         }
         return _out << " }";
     }
-
 template < typename Index_T, std::size_t N >
 class DSU {
 public:
@@ -103,6 +102,15 @@ public:
     {
         auto rep = find_rep(ndx);
         return { rep, m_cl[rep].members };
+    }
+
+    /**
+    *  NOTE: Return a reference to the dsu array at ndx even if ndx is not the
+    *   representative of its cluster (might be empty even if non-trivial cluster)
+    */
+    const Cluster& see_cluster(const Index ndx) const
+    {
+        return m_cl[ndx];
     }
 
     void change_rep(Index old_rep, Index new_rep)

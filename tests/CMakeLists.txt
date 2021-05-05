@@ -1,3 +1,5 @@
+project( SameGame_Tests )
+
 set(TEST_DATA_DIR ${TEST_DIR}/data)
 set(TEST_SRC_DIR ${TEST_DIR}/src)
 set(TEST_INC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)

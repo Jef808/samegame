@@ -12,6 +12,7 @@
 #include <sstream>
 #include <string>
 #include <thread>
+#include <utility>
 #include <vector>
 #include <spdlog/fmt/ostr.h>
 #include <spdlog/spdlog.h>
@@ -24,6 +25,7 @@
 namespace sg {
 
 const Cluster CLUSTER_NONE = {CELL_NONE, {}};
+const std::vector<Cell> CLUSTER_VEC_NONE = std::vector<Cell> {};
 const ClusterData CLUSTERD_NONE = {CELL_NONE, COLOR_NONE, 0};
 
 template < typename CellContainer >
@@ -445,6 +447,11 @@ Cluster State::get_cluster(Cell cell) const
     // }
 }
 
+const Cluster& State::see_cluster(const Cell cell) const
+{
+    generate_clusters();
+    return p_dsu->see_cluster(cell);
+}
 // TODO Stop sending back naked pointers to data that's constantly changing maybe?
 // Cluster* State::get_cluster(const Cell& cell) const
 // {
@@ -1031,7 +1038,7 @@ ClusterData State::kill_random_valid_cluster_new()
 
 using namespace std;
 
-namespace display {
+namespace sg_display {
 
 enum class Color_codes : int {
     BLACK     = 30,
@@ -1075,14 +1082,14 @@ string color_unicode(Color c)
     return std::to_string((int)Color_codes(c + 90));
 }
 
-string print_cell(const sg::Grid& grid, Cell ndx, Output output_mode, const Cluster& cluster = CLUSTER_NONE)
+string print_cell(const sg::Grid& grid, Cell ndx, Output output_mode, Cell rep, const std::vector<Cell>& cluster = CLUSTER_VEC_NONE)
 {
     bool ndx_in_cluster = find(cluster.cbegin(), cluster.cend(), ndx) != cluster.cend();
     stringstream ss;
 
     if (output_mode == Output::CONSOLE)
     {
-        Shape shape = ndx == cluster.rep ? Shape::B_DIAMOND :
+        Shape shape = ndx == rep ? Shape::B_DIAMOND :
             ndx_in_cluster ? Shape::DIAMOND : Shape::SQUARE;
 
         ss << "\033[1;" << color_unicode(grid[ndx]) << "m" << shape_unicode(shape) << "\033[0m";
@@ -1095,7 +1102,7 @@ string print_cell(const sg::Grid& grid, Cell ndx, Output output_mode, const Clus
         string formatter = "";
         if (ndx_in_cluster)
             formatter += "\e[1m]";
-        if (ndx == cluster.rep)
+        if (ndx == rep)
             formatter += "\033[4m]";
 
         ss << formatter << std::to_string(grid[ndx]) << "\033[0m\e[0m";
@@ -1110,19 +1117,24 @@ int x_labels[15] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14 };
 
 //****************************** PRINTING BOARDS ************************/
 
-struct State_Action {
-    const State& state;
-    //Cell actionrep              = MAX_CELLS;
-    Cluster cluster             = {};
+void State_Action::load_cluster(Cell rep)
+{
+    const auto& cluster = r_state.see_cluster(rep);
+    for (auto it = cluster.cbegin();
+         it != cluster.cend();
+         ++it)
+    {
+        m_cluster.push_back(*it);
+    }
+}
 
-    std::string display(Output = Output::CONSOLE) const;
-};
+//    std::string display(Output = Output::CONSOLE) const;
 
-string State_Action::display(sg::Output output_mode) const
+string State_Action::to_string(sg::Output output_mode) const
 {
     bool labels = true;
 
-    const auto& grid = state.p_data->cells;
+    const auto& grid = r_state.p_data->cells;
 
     stringstream ss {"\n"};
 
@@ -1133,17 +1145,17 @@ string State_Action::display(sg::Output output_mode) const
         }
         // Print row except last entry
         for (int x = 0; x < WIDTH - 1; ++x) {
-            ss << display::print_cell(grid, Cell(x + y * WIDTH), output_mode, cluster) << ' ';
+            ss << sg_display::print_cell(grid, Cell(x + y * WIDTH), output_mode, m_action, m_cluster) << ' ';
         }
         // Print last entry,
-        ss << display::print_cell(grid, Cell(WIDTH - 1 + y * WIDTH), output_mode, cluster) << '\n';
+        ss << sg_display::print_cell(grid, Cell(WIDTH - 1 + y * WIDTH), output_mode, m_action, m_cluster) << '\n';
     }
 
     if (labels) {
         ss << std::string(34, '_') << '\n'
              << std::string(5, ' ');
 
-        for (int x : display::x_labels) {
+        for (int x : sg_display::x_labels) {
 
             ss << x << ((x < 10) ? " " : "");
         }
@@ -1156,19 +1168,17 @@ string State_Action::display(sg::Output output_mode) const
 void State::view_clusters(ostream& _out) const
 {
     generate_clusters();
-    std::vector<Cluster> clusters;
 
     for (auto it = p_dsu->begin();
          it != p_dsu->end();
          ++it)
     {
         if (it->members.size() > 1)
-            clusters.push_back(*it);
-    }
-    for (const auto& c : clusters)
-    {
-        spdlog::info("\n{}\n", State_Action{*this, c});
-        this_thread::sleep_for(1000.0ms);
+        {
+            auto sa = State_Action(*this, it->rep);
+            spdlog::info("\n{}\n", sa);
+            this_thread::sleep_for(400.0ms);
+        }
     }
 }
 
@@ -1188,19 +1198,18 @@ ostream& operator<<(ostream& _out, const ClusterData& _cd)
 
 ostream& operator<<(ostream& _out, const State_Action& state_action)
 {
-    return _out << state_action.display(Output::CONSOLE);
-
+    return _out << state_action.to_string(Output::CONSOLE);
 }
 
-void State::display(ostream& _out, Output output_mode) const
+string State::to_string(Cell rep, Output output_mode) const
 {
-    cout << State_Action({*this}).display(Output::CONSOLE);
+    auto sa = State_Action(*this, rep);
+    return sa.to_string(output_mode);
 }
 
 ostream& operator<<(ostream& _out, const State& state)
 {
-    state.display(_out, Output::CONSOLE);
-    return _out;
+    return _out << state.to_string(MAX_CELLS, Output::CONSOLE);
 }
 
 bool operator==(const Cluster& a, const Cluster& b) {

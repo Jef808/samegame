@@ -23,7 +23,6 @@ using ClusterList = std::array<Cluster, MAX_CELLS>;
 using ClusterVec = std::vector<Cluster*>;
 using VecClusterV = std::vector<ClusterVec>;
 
-
 // Before figuring something else, store the whole grid for undoing moves
 struct StateData {
   Key        key           = 0;
@@ -77,6 +76,7 @@ public:
   void        generate_clusters_old() const;
   void        kill_cluster(const Cluster&);
   Cluster     get_cluster(const Cell) const;
+  const Cluster& see_cluster(const Cell) const;
   ClusterData kill_cluster_blind(const Cell, const Color);   // Used to apply a random action for simulations
   ClusterData kill_random_valid_cluster();
   ClusterData kill_random_valid_cluster_new();
@@ -91,9 +91,8 @@ public:
 
   // Debug
   friend std::ostream& operator<<(std::ostream&, const State&);
-  friend struct State_Action;
 
-  void display(std::ostream&, Output = Output::CONSOLE) const;
+  std::string to_string(Cell rep = CELL_NONE, Output = Output::CONSOLE) const;
   void view_clusters(std::ostream&) const;
 
 private:
@@ -104,7 +103,23 @@ private:
 };
 
 // For debugging
-struct State_Action;
+struct State_Action {
+  using localCluster = std::vector<Cell>;
+  const State& r_state;
+  Cell m_action;
+  localCluster m_cluster {};
+
+  State_Action(const State& _state, Cell _action)
+    : r_state(_state)
+    , m_action(_action)
+  {
+    load_cluster(m_action);
+  }
+
+  void load_cluster(Cell rep);
+  std::string to_string(Output = Output::CONSOLE) const;
+  friend std::ostream& operator<<(std::ostream&, const State_Action&);
+};
 
 extern std::ostream& operator<<(std::ostream&, const State_Action&);
 extern std::ostream& operator<<(std::ostream&, const State&);

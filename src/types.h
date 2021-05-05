@@ -28,27 +28,31 @@ namespace sg {
   using Cell = uint8_t;
   const Cell CELL_NONE = MAX_CELLS;
 
-  struct Cluster {
-      Cell rep{ CELL_NONE };
-      std::list<Cell> members {};
-  };
+  // struct Cluster {
+  //     Cell rep{ CELL_NONE };
+  //     std::list<Cell> members {};
+  // };
 
-  struct ClusterV {
-      Cell rep{ CELL_NONE };
-      std::vector<Cell> members;
-  };
+  // struct Cluster {
+  //   Cell rep{ CELL_NONE };
+  //   std::vector<Cell> members {};
+  // };
+
+  // struct ClusterV {
+  //     Cell rep{ CELL_NONE };
+  //     std::vector<Cell> members;
+  // };
 
   using Grid = std::array<Color, MAX_CELLS>;
   using ColorsCounter = std::array<uint8_t, COLOR_NB>;
-  using ClusterList = std::array<Cluster, MAX_CELLS>;
-  using ClusterVec = std::vector<Cluster*>;
+
 
   using Key = uint64_t;
 
   using Action = Cell;
   using ActionVec = std::vector<Action>;
   using ActionDVec = std::vector<ClusterData>;
-  using VecClusterV = std::vector<ClusterV>;
+  //using VecClusterV = std::vector<ClusterV>;
 
   enum class Output {
     CONSOLE,

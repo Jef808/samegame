@@ -79,8 +79,11 @@ public:
   Node* get_node();
   int get_ply() const;
 
-  Reward random_simulation_old(ClusterData cd);
+  Reward random_simulation_hybrid(ClusterData cd);
+  Reward random_simulation_gen_clusters(ClusterData cd);
+  Reward random_simulation_gen_clusters_new(ClusterData cd);
   Reward random_simulation(ClusterData cd);
+  Reward random_simulation_new(ClusterData cd);
   Reward sg_value(const ClusterData& cd);
   Reward evaluate_terminal();
   Reward value_to_reward(double);

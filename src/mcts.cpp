@@ -7,6 +7,7 @@
 #include <iomanip>
 #include <math.h>
 #include <random>
+#include <spdlog/stopwatch.h>
 #include <spdlog/spdlog.h>
 #include <spdlog/fmt/ostr.h>
 #include "mcts.h"
@@ -415,9 +416,43 @@ void Agent::init_children()
     ++current_node()->n_visits;
 }
 
+Reward Agent::random_simulation_hybrid(ClusterData _cd)
+{
+    Reward res = 0;
+    return res;
+}
+
+Reward Agent::random_simulation_gen_clusters_new(ClusterData _cd)
+{
+    StateData* sd_backup = state.p_data;
+    StateData sd_simul = *state.p_data;
+    state.p_data = &sd_simul;
+
+    Reward res = 0;
+
+    _cd = state.kill_cluster_blind(_cd.rep, _cd.color);
+
+    int cnt = 0;
+
+    auto logger = spdlog::get("m_logger");
+    spdlog::stopwatch sw;
+
+    while (_cd.size > 1)
+    {
+        res += sg_value(_cd);
+        sw.reset();
+        _cd = state.kill_random_valid_cluster_generating();
+        logger->trace("    With {} cells remaining, time for gen_cluster_new is {}", 225 - cnt, sw);
+        cnt += _cd.size;
+    }
+
+    state.p_data = sd_backup;
+    return res;
+}
+
 // First idea would be to not save or lookup anything, but save the next-to-last state
 // (really, state-before-known-win/lose) to start building a table of alphas and betas.
-Reward Agent::random_simulation_old(ClusterData _cd)
+Reward Agent::random_simulation_gen_clusters(ClusterData _cd)
 {
     Reward res = stack[ply].r = 0;
     int depth=0;
@@ -458,14 +493,50 @@ Reward Agent::random_simulation(ClusterData _cd)
     // NOTE: Since we do not compute the keys for efficiency, we can't use is_terminal method
     //ClusterData cluster = _cd;
 
+    //spdlog::debug("Random simulation with Clusterdata {}", _cd);
+
     _cd = state.kill_cluster_blind(_cd.rep, _cd.color);
+
+    //spdlog::debug("After kill_cluster_blind, Clusterdata is {}", _cd);
     Reward res = sg_value(_cd);
     int cnt = 0;
+    auto logger = spdlog::get("m_logger");
+    spdlog::stopwatch sw;
 
     while (_cd.size > 1)
     {
-        ++cnt;
-        _cd = state.kill_random_valid_cluster();
+        sw.reset();
+        _cd = state.kill_random_valid_cluster_new();
+        logger->trace("    With {} cells remaining, time for current is {}", 225 - cnt, sw);
+        cnt += _cd.size;
+        res += sg_value(_cd);
+     }
+
+    res += evaluate_terminal();
+    *(state.p_data) = sd_backup;
+
+    return res;
+}
+
+Reward Agent::random_simulation_new(ClusterData _cd)
+{
+    StateData sd_backup = *state.p_data;
+    // Do until we hit a terminal state or the maximum depth
+    // NOTE: Since we do not compute the keys for efficiency, we can't use is_terminal method
+    //ClusterData cluster = _cd;
+
+    _cd = state.kill_cluster_blind(_cd.rep, _cd.color);
+    Reward res = sg_value(_cd);
+    int cnt = 0;
+    auto logger = spdlog::get("m_logger");
+    spdlog::stopwatch sw;
+
+    while (_cd.size > 1)
+    {
+        sw.reset();
+        _cd = state.kill_random_valid_cluster_new();
+        logger->trace("    With {} cells remaining, time for new is {}", 225 - cnt, sw);
+        cnt += _cd.size;
         res += sg_value(_cd);
      }
 

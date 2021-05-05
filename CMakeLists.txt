@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.14)
 
-project(SameGame VERSION 1.0)
+project( SameGame VERSION 1.0 LANGUAGES CXX )
 
 include( FetchContent )
 
@@ -29,31 +29,6 @@ FetchContent_Declare(
 FetchContent_MakeAvailable( googletest )
 FetchContent_MakeAvailable( spdlog )
 
-# # Testing
-# if ( SG_ENABLE_TESTS )
-#   enable_testing()
-#   if ( WITH_GTEST )
-#     FetchContent_MakeAvailable( googletest )
-#   else()
-#     find_package( GTest QUIET )
-#     if ( NOT GTest_FOUND )
-#       message( FATAL_ERROR "Error: SG_ENABLE_TESTS requires GoogleTest to be found or builtin." )
-#     endif()
-#   endif()
-# endif()
-
-# # Logging
-# if ( SG_ENABLE_LOGS )
-#   if ( WITH_SPDLOG )
-#     FetchContent_MakeAvailable( spdlog )
-#   else()
-#     find_package( Spdlog QUIET )
-#     if ( NOT Spdlog_FOUND )
-#       message( FATAL_ERROR "Error: SG_ENABLE_LOGS requires Spdlog to be found on system or builtin." )
-#     endif()
-#   endif()
-# endif()
-
 # Project directories
 set(DATA_DIR ${PROJECT_SOURCE_DIR}/data)
 set(SRC_DIR ${PROJECT_SOURCE_DIR}/src)
@@ -69,20 +44,23 @@ set(BUILD_DIR ${PROJECT_SOURCE_DIR}/build)
 
 set( samegame_src
    ${SRC_DIR}/samegame.cpp
-   ${SRC_DIR}/samegame.h
-   ${SRC_DIR}/types.h
+   #${SRC_DIR}/samegame.h
+   #${SRC_DIR}/types.h
    )
 
  set( mcts_src
    ${SRC_DIR}/mcts.cpp
-   ${SRC_DIR}/mcts.h
+   #${SRC_DIR}/mcts.h
    )
 
-file( GLOB SOURCES
-  ${SRC_DIR}/*.h
-  ${SRC_DIR}/*.cpp
+file( GLOB SRC_TESTS_SOURCES
+  ${SRC_DIR}/tests/*_tests.cc
   )
 
+# target for the source tests using GTest
+add_executable( test_sources ${SRC_TESTS_SOURCES} )
+target_link_libraries( test_sources  gtest_main )
+target_include_directories( test_sources PUBLIC ${SRC_DIR} )
 
 # list(FILTER SOURCES EXCLUDE REGEX ".*main.cpp")
 
@@ -98,12 +76,7 @@ file( GLOB SOURCES
 # target_link_libraries(main PRIVATE spdlog::spdlog)
 # target_include_directories(main PUBLIC ${SRC_DIR} ${DATA_DIR})
 
-add_executable( samegame_basic_test
-  ${SRC_DIR}/tests/samegame_basic_test.cc )
-target_link_libraries( samegame_basic_test
-  gtest_main )
-target_include_directories( samegame_basic_test PUBLIC
-  ${SRC_DIR} )
+
 
 # add_custom_target(log_debug SPDLOG_LEVEL=debug,m_logger=trace, && ./main
 #   DEPENDS main
@@ -116,8 +89,10 @@ target_include_directories( samegame_basic_test PUBLIC
 #   DEPENDS test_avg_val
 #   BYPRODUCTS log/avg_val.txt)
 
+set(SOURCES ${samegame_src} ${mcts_src} )
 
-add_executable(test_pv tests/test_pv.cpp ${samegame_src} ${mcts_src})
+# Hacky test executables
+add_executable(test_pv tests/test_pv.cpp ${SOURCES})
 target_link_libraries(test_pv PRIVATE spdlog::spdlog)
 target_include_directories(test_pv PUBLIC ${SRC_DIR} ${DATA_DIR})
 # add_custom_target(play_game SPDLOG_LEVEL=debug,m_logger=trace, && ./test_pv
@@ -126,7 +101,7 @@ target_include_directories(test_pv PUBLIC ${SRC_DIR} ${DATA_DIR})
 
 add_executable(test_clusters tests/display_clusters.cpp ${SOURCES})
 target_link_libraries(test_clusters PRIVATE spdlog::spdlog)
-target_include_directories(test_clusters PUBLIC ${SRC_DIR} ${INC_DIR} ${DATA_DIR})
+target_include_directories(test_clusters PUBLIC ${SRC_DIR} ${DATA_DIR})
 # add_custom_target(run_test_clusters SPDLOG_LEVEL=debug,m_logger=trace, && ./test_clusters
 #   DEPENDS test_clusters
 #   BYPRODUCTS log/game.txt)
@@ -142,4 +117,4 @@ add_custom_target(log_clean rm ${PROJECT_SOURCE_DIR}/build/logs -r)
 
 # Enable googletest features
 include( GoogleTest )
-gtest_discover_tests( samegame_basic_test )
+gtest_discover_tests( test_sources )

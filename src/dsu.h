@@ -8,70 +8,80 @@
 #include <vector>
 //#include <bits/c++config.h>
 
-template < typename Index_T >
-struct Cluster_T {
-    using Index = Index_T;
-        using Container = std::vector<Index_T>;
-    using Cluster = Cluster_T<Index>;
-        Index rep {};
-        Container members {};
-        bool operator<(const Cluster& other) {
-            return members.size() < other.members.size();
-        }
-        void absorb(Cluster& other) {
-            other.rep = rep;
-            members.insert(members.cend(),
-                               other.members.cbegin(),
-                               other.members.cend());
-            other.members.clear();
-        }
-        typename Container::iterator begin() { return std::begin(members); }
-        typename Container::iterator end()   { return std::end(members); }
-        typename Container::const_iterator cbegin() const { return std::cbegin(members); }
-        typename Container::const_iterator cend() const { return std::cend(members); }
-    template < typename _Index_T >
-    friend std::ostream& operator<<(std::ostream& _out, Cluster_T<_Index_T>& cluster);
+namespace internal {
+
+/**
+ * Converts any enum class to its underlying integral type.
+ */
+    template < typename E >
+    auto constexpr to_integral(E e)
+    {
+        return static_cast<std::underlying_type_t<E>>(e);
+    }
+
+    template < typename E, typename I >
+    auto constexpr to_enum(I i)
+    {
+        return static_cast<E>(i);
+    }
+} //namespace internal
+
+
+template < typename IndexT >
+class ClusterT {
+    // Basic type aliases
+    using Index = IndexT;
+    using Container = std::vector<Index>;
+
+    // Data members
+    Index rep {};
+    Container members {};
+
+    auto size() const { return members.size(); }
+
+    typename Container::iterator       begin()        {  return std::begin(members);  }
+    typename Container::iterator       end()          {  return std::end(members);    }
+    typename Container::const_iterator cbegin() const {  return std::cbegin(members); }
+    typename Container::const_iterator cend()   const {  return std::cend(members);   }
+
+    template < typename _IndexT >
+    friend std::ostream& operator<<(std::ostream& _out, ClusterT<_IndexT>&);
 };
 
-template <typename _Index>
-inline std::ostream& operator<<(std::ostream& _out, const Cluster_T<_Index>& cluster)
+template <typename _IndexT>
+inline std::ostream& operator<<(std::ostream& _out, const ClusterT<_IndexT>& cluster)
+{
+    _out << "{ ";
+    for (auto it = cluster.begin();
+         it != cluster.end();
+         ++it)
     {
-        _out << "{ ";
-        for (auto it = cluster.begin();
-             it != cluster.end();
-             ++it)
-        {
-            _out << int(cluster.rep) << ' ';
-        }
-        return _out << " }";
+        _out << to_integral(cluster.rep) << ' ';
     }
-template < typename Index_T, std::size_t N >
+    return _out << " }";
+}
+
+
+
+template < typename IndexT >
 class DSU {
 public:
-    static_assert(N > 0);
-    static_assert(std::is_integral<Index_T>::value);
+    static_assert( std::is_enum<IndexT>::value );
+    // Basic type aliases
+    using Index = IndexT;
+    using Cluster = ClusterT<Index>;
+    using ClusterList = std::array<Cluster, to_integral(declval(IndexT::NB))>;
 
-    using Index = Index_T;
-    using Cluster = Cluster_T<Index>;
-    using ClusterList = std::array<Cluster, N>;
+    static_assert( std::is_trivially_default_constructible<ClusterList>::value );
 
-public:
-    DSU() { };
-
-    DSU(DSU&& other) {
-        std::swap(m_cl, other.m_cl);
-    }
-
-    DSU& operator=(DSU&& other) {
-        m_cl = other.m_cl;
-    }
+    DSU() {}
 
     void reset()
     {
-        auto i = 0;
+        IndexT i = to_enum<Index>(0);
         for (Cluster& cluster : m_cl)
         {
-            cluster = { i, { i }};
+            cluster = { to_enum<Index>(i), { to_enum<Index>(i) }};
             ++i;
         }
     }
@@ -90,12 +100,16 @@ public:
         b = find_rep(b);
 
         if (a != b) {
-             // Make sure the cluster at b is the smallest one
+            // Make sure the cluster at b is the smallest one
             if (m_cl[a] < m_cl[b]) {
                 std::swap(a, b);
             }
-            m_cl[a].absorb(m_cl[b]);
-        }
+                m_cl[b].rep = m_cl[a].rep;
+                m_cl[a].insert(m_cl[a].cend(),
+                               m_cl[b].m_cl[a].cbegin(),
+                               m_cl[b].m_cl[a].cend());
+                m_cl[b].m_cl[a].clear();
+            }
     }
 
     Cluster get_cluster(Index ndx)
@@ -113,7 +127,7 @@ public:
         return m_cl[ndx];
     }
 
-    void change_rep(Index old_rep, Index new_rep)
+    void rebase_representative(Index old_rep, Index new_rep)
     {
         m_cl[old_rep].rep = new_rep;
         m_cl[new_rep].members = m_cl[old_rep].members;
@@ -122,10 +136,12 @@ public:
     typename ClusterList::iterator begin() { return std::begin(m_cl); }
     typename ClusterList::iterator end()   { return std::end(m_cl); }
 
-
 private:
     ClusterList m_cl;
 };
+
+
+
 
 
 

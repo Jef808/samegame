@@ -25,6 +25,7 @@ const int MAX_ITER        = 1500;
 const int MAX_TIME        = 10000;   // In milliseconds.
 //const int MAX_NODES       = 10000;
 const double EXPLORATION_CST = 0.04;
+const bool use_time          = false;
 
 struct Edge;
 struct Node;
@@ -32,14 +33,9 @@ struct Node;
 // Used to hold some information about actions independantly of the
 // mcts tree structure. Allows sampling playouts without creating nodes.
 struct SearchData {
-  int              ply;
-  Action*          pv;
-  sg::ClusterData  cd;    // TODO Get rid of this. The SearchStack idea is for TEMPORARY stacks so we don't wan't to make copies for no reason
-  sg::ClusterData* p_cd;
-  Action           current_action;
-  Reward           r;
-  int              sibling_rank;
-  int              parent_id;
+  int              ply { };
+  sg::ClusterData  cd  { };//{ sg::CELL_NONE, sg::Color::Empty, 0 };    // TODO Get rid of this. The SearchStack idea is for TEMPORARY stacks so we don't wan't to make copies for no reason
+  Reward           r   { };
 };
 
 class Agent {
@@ -70,22 +66,20 @@ public:
   bool is_root(Node* root);
   bool is_terminal(Node* node);
   void apply_action(Action action);
-  void apply_action_blind(Action action);
+  ClusterData apply_action_blind(Action action);
+  bool apply_action_blind(const ClusterData& cd);
   void apply_action(Action action, StateData& sd);
   void apply_action(const ClusterData& cd);
   void undo_action();
   void undo_action(const ClusterData& cd);
   void init_children();
-  Node* get_node();
+  //Node* get_node(State&);
   int get_ply() const;
 
-  Reward random_simulation_hybrid(ClusterData cd);
-  Reward random_simulation_gen_clusters(ClusterData cd);
-  Reward random_simulation_gen_clusters_new(ClusterData cd);
-  Reward random_simulation(ClusterData cd);
-  Reward random_simulation_new(ClusterData cd);
-  Reward sg_value(const ClusterData& cd);
-  Reward evaluate_terminal();
+  Reward random_simulation(const ClusterData& cd, size_t n=1);
+
+  Reward evaluate_valid_action(const ClusterData& cd) const;
+  Reward evaluate_terminal() const;
   Reward value_to_reward(double);
   double reward_to_value(Reward);
 
@@ -112,6 +106,7 @@ public:
   // Data
   State& state;
   Node* root;
+  StateData root_sd;
 
   // Counters for bookkeeping
   int cnt_iterations;
@@ -120,7 +115,6 @@ public:
   int cnt_explored_nodes;
   int cnt_rollout;
   int cnt_new_nodes;
-  int cnt_new_roots;
   // Tree statistics
   double value_global_max;
   double value_global_min;
@@ -128,10 +122,10 @@ public:
   int    global_max_depth;
 
   // To keep track of the data during the search (indexed by ply)
-  std::array<Node*, MAX_PLY>        nodes{ };       // Elements are stored in the MCTSLookupTable
-  std::array<Edge*, MAX_PLY>        actions{ };     // Elements are stored in their parent node
-  std::array<StateData, MAX_PLY>    states{ };      // To keep history of states along a branch (stored on the heap)
-  std::array<SearchData, MAX_PLY>   stack{ };       // To perform the playout samplings without creating new nodes
+  std::array<Node*, MAX_PLY>         nodes;       // Elements are stored in the MCTSLookupTable
+  std::array<Edge*, MAX_PLY>         actions;     // Elements are stored in their parent node
+  std::array<StateData, MAX_PLY>     states;      // To keep history of states along a branch (stored on the heap)
+  std::array<SearchData, MAX_PLY>    stack;       // To perform the playout samplings without creating new nodes
 private:
   int ply;
   double exploration_cst = EXPLORATION_CST;
@@ -139,22 +133,22 @@ private:
 };
 
 struct Edge {
-  sg::ClusterData  cd;
-  int     sg_value_from_root;
-  int     val_best;
-  Reward  reward_avg_visit;
-  int     n_visits;
+  sg::ClusterData  cd { sg::CELL_NONE, sg::Color::Empty, 0 };
+  int     sg_value_from_root { 0 };
+  int     val_best { 0 };
+  Reward  reward_avg_visit { 0 };
+  int     n_visits { 0 };
 };
 
 struct Node {
   using Edges = std::vector<Edge>;
-  Key      key;
-  int      n_visits;
-  int      n_children;
-  int      n_expanded_children;
-  Edge*    parent;    // NOTE: There could be many with repeated states... better to use our edge stack
-  Edges    children;
-  int      sg_value_from_root;
+  Key      key { 0 };
+  int      n_visits { 0 };
+  int      n_children { 0 };
+  //int      n_expanded_children { 0 };
+  //Edge*    parent;    // NOTE: There could be many with repeated states... better to use our edge stack
+  Edges    children { };
+  //int      sg_value_from_root;
 
   Edges& children_list() { return children; }
 };

@@ -1,16 +1,13 @@
 // Basic tests only aimed at code robustness.
-
+#include <algorithm>
 #include <fstream>
 #include <gtest/gtest.h>
 #include "samegame.h"
+#include "dsu.h"
 
 using namespace sg;
 
-TEST(ValidClusterTest, BasicAssertions)
-{
-    const Cluster cluster;
-    EXPECT_LE(cluster.members.size(), 2);
-}
+
 
 // int main()
 // {

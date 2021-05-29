@@ -57,13 +57,19 @@ file( GLOB SRC_TESTS_SOURCES
   ${SRC_DIR}/tests/*_tests.cc
   )
 
+set( SOURCES ${samegame_src} ${mcts_src} )
+
+# The main program
+add_library( sg_mcts STATIC ${SOURCES} )
+target_link_directories( sg_mcts PUBLIC ${SRC_DIR} )
+
+
 # target for the source tests using GTest
 add_executable( test_sources ${SRC_TESTS_SOURCES} )
-target_link_libraries( test_sources  gtest_main )
+target_link_libraries( test_sources PRIVATE sg_mcts gtest_main spdlog::spdlog )
 target_include_directories( test_sources PUBLIC ${SRC_DIR} )
 
 # list(FILTER SOURCES EXCLUDE REGEX ".*main.cpp")
-
 #add_library(sglib ${samegame_src})
 #target_link_libraries(sglib PRIVATE spdlog::spdlog)
 #target_include_directories(sglib PUBLIC ${SRC_DIR} ${INC_DIR})
@@ -89,25 +95,32 @@ target_include_directories( test_sources PUBLIC ${SRC_DIR} )
 #   DEPENDS test_avg_val
 #   BYPRODUCTS log/avg_val.txt)
 
-set(SOURCES ${samegame_src} ${mcts_src} )
+# Test/vizualize the clusters
+add_executable(display_clusters tests/display_clusters.cpp)
+target_link_libraries(display_clusters PRIVATE sg_mcts spdlog::spdlog)
+target_include_directories(display_clusters PUBLIC ${SRC_DIR} ${DATA_DIR})
+
+# To play without an agent
+add_executable(test_human_play tests/test_humanplay.cpp)
+target_link_libraries(test_human_play PRIVATE sg_mcts spdlog::spdlog)
+target_include_directories(test_human_play PUBLIC ${SRC_DIR} ${DATA_DIR})
+
+# Basic tree generation
+add_executable(test_init_children tests/test_init_children.cpp)
+target_link_libraries(test_init_children PRIVATE sg_mcts spdlog::spdlog)
+target_include_directories(test_init_children PUBLIC ${SRC_DIR} ${DATA_DIR})
 
 # Hacky test executables
-add_executable(test_pv tests/test_pv.cpp ${SOURCES})
-target_link_libraries(test_pv PRIVATE spdlog::spdlog)
+add_executable(test_pv tests/test_pv.cpp)
+target_link_libraries(test_pv PRIVATE sg_mcts spdlog::spdlog)
 target_include_directories(test_pv PUBLIC ${SRC_DIR} ${DATA_DIR})
-# add_custom_target(play_game SPDLOG_LEVEL=debug,m_logger=trace, && ./test_pv
-#   DEPENDS test_pv
-#   BYPRODUCTS log/game.txt)
 
-add_executable(test_clusters tests/display_clusters.cpp ${SOURCES})
-target_link_libraries(test_clusters PRIVATE spdlog::spdlog)
+add_executable(test_clusters tests/display_clusters.cpp)
+target_link_libraries(test_clusters PRIVATE sg_mcts spdlog::spdlog)
 target_include_directories(test_clusters PUBLIC ${SRC_DIR} ${DATA_DIR})
-# add_custom_target(run_test_clusters SPDLOG_LEVEL=debug,m_logger=trace, && ./test_clusters
-#   DEPENDS test_clusters
-#   BYPRODUCTS log/game.txt)
 
-add_executable(test_random_simulation tests/test_random_simulation.cpp ${SOURCES})
-target_link_libraries(test_random_simulation PRIVATE spdlog::spdlog)
+add_executable(test_random_simulation tests/test_random_simulation.cpp)
+target_link_libraries(test_random_simulation PRIVATE sg_mcts spdlog::spdlog)
 target_include_directories(test_random_simulation PUBLIC ${SRC_DIR} ${DATA_DIR})
 # add_custom_target(run_test_simul SPDLOG_LEVEL=debug,m_logger=trace, && ./test_random_sim
 #   DEPENDS test_random_simulation

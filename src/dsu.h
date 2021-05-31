@@ -10,11 +10,14 @@
 #include <utility>
 #include <vector>
 
+
+namespace sg {
+
 /**
  * A Cluster (of indices) has a `representative` index along with a container
  * containing all of its members.
  */
-template <typename Index_T>
+template <typename Index_T, Index_T DefaultValue = 0>
 struct ClusterT {
     // Basic type aliases
     using Index = Index_T;     // This is to make the Index type available to DSU
@@ -22,12 +25,12 @@ struct ClusterT {
     using Container = std::vector<Index>;
 
     // Data members
-    Index rep {0};
-    Container members {{0}};
+    Index rep;
+    Container members;
 
     ClusterT()
-      : rep{}
-      , members{}
+      : rep{ DefaultValue }
+      , members{ {DefaultValue} }
     {}
 
     /** For reseting the DSU. */
@@ -50,11 +53,12 @@ struct ClusterT {
     typename Container::const_iterator cbegin() const { return std::cbegin(members); }
     typename Container::const_iterator cend() const { return std::cend(members); }
 
-    //std::string to_string() const;
-
-    template <typename _Index>
-    friend std::ostream& operator<<(std::ostream& _out, const ClusterT<Index>&);
+    template <typename _Index, _Index _DefaultValue>
+    friend std::ostream& operator<<(std::ostream& _out, const ClusterT<Index, _DefaultValue>&);
 };
+
+
+namespace details {
 
 /**
  * The `Disjoint Set Union` data structure represents a partition of indices into clusters
@@ -71,7 +75,7 @@ public:
     using ClusterList = std::array<Cluster, N>;
 
     DSU()
-        : m_clusters{{}}
+        : m_clusters{ Cluster() }
     {}
 
     void reset()
@@ -109,13 +113,12 @@ public:
      */
     void merge_clusters(Cluster& _larger_a, Cluster& _smaller_b)
     {
-        // The index at b now points to the representative of cluster a
+        // Make the representative of the smaller cluster now point to the representative of the bigger one.
         _smaller_b.rep = _larger_a.rep;
-
         // Insert the new cells
         _larger_a.members.insert(_larger_a.cend(),
-                                     _smaller_b.begin(),
-                                     _smaller_b.end());
+                                 _smaller_b.begin(),
+                                 _smaller_b.end());
 
         // Clean up the merged cluster (only representatives have non-empty clusters at their index)
         _smaller_b.members.clear();
@@ -139,7 +142,7 @@ public:
     /**
      * Return a copy of the cluster containing index ndx.
      */
-    Cluster get_cluster(const Index ndx) const
+    Cluster get_cluster(Index ndx)
     {
         auto rep = find_rep(ndx);
         return m_clusters[rep];
@@ -153,6 +156,8 @@ public:
 private:
     ClusterList m_clusters;
 };
+
+} // namespace details
 
 // template < typename _Index >
 // inline std::string to_string(const typename ClusterT<_Index>::Container& cl_members) {
@@ -172,14 +177,15 @@ private:
 
 // template < typename _Index >
 // inline std::ostream& operator<<(std::ostream& _out, const typename ClusterT<_Index>::Container& cl_members) {
-//     return _out << to_string(cl_members);
-// }
+//      return _out << to_string(cl_members);
+//}
 
-template <typename _Index>
-inline std::ostream& operator<<(std::ostream& _out, const ClusterT<_Index>& cluster)
+
+
+
+template <typename _Index, _Index _DefaultValue>
+inline std::ostream& operator<<(std::ostream& _out, const ClusterT<_Index, _DefaultValue>& cluster)
 {
-    //std::stringstream ss;
-
     _out << "Rep=" << cluster.rep << " { ";
     for (auto it = cluster.members.cbegin();
          it != cluster.members.cend();
@@ -191,5 +197,33 @@ inline std::ostream& operator<<(std::ostream& _out, const ClusterT<_Index>& clus
     return _out << " }";
 }
 
+
+/**
+ * When comparing clusters, only look at the (unordered) members,
+ * the representatives don't matter as long as the members are the same.
+ */
+template < typename _Index_T, _Index_T _DefaultValue >
+inline bool operator==(const ClusterT<_Index_T, _DefaultValue>& a, const ClusterT<_Index_T, _DefaultValue>& b) {
+    if (a.size() != b.size()) {
+        return false;
+    }
+    // Sort to make the two containers comparable
+    // NOTE: Need to copy them first since they are passed
+    // by const ref
+     auto a_cpy = a;
+     auto b_cpy = b;
+
+    std::sort(a_cpy.members.begin(), a_cpy.members.end());
+    std::sort(b_cpy.members.begin(), b_cpy.members.end());
+
+    for (auto i = 0; i < a.members.size(); ++i) {
+        if (a_cpy.members[i] != b_cpy.members[i]) {
+            return false;
+        }
+    }
+    return true;
+}
+
+}  // namespace sg
 
 #endif

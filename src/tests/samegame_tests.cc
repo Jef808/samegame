@@ -3,26 +3,68 @@
 #include <fstream>
 #include <gtest/gtest.h>
 #include "samegame.h"
-#include "dsu.h"
 
 using namespace sg;
 
 
+class SamegameTest : public ::testing::Test {
+    protected:
 
-// int main()
-// {
-//     State::init();
+    const std::string filepath = "../../data/input.txt";
 
-//     StateData sd_root {};
-//     std::ifstream _if;
-//     _if.open("../../data/input.txt", std::ios::in);
-//     sg::State state (_if, sd_root);
-//     _if.close();
+    SamegameTest()
+        : state(sd_root)
+    {}
 
-//     if (!test_is_valid_cluster())
-//     {
-//         spdlog::error("Cluster is not default constructed with members.size() < 2.\nChecks for is_valid_action must be adjusted!");
-//     }
+    void SetUp() override {
 
-//     return EXIT_SUCCESS;
-// }
+        sd_root = StateData { };
+
+        std::ifstream _if;
+        _if.open(filepath, std::ios::in);
+        if (!_if) {
+            FAIL();//"Failed to open ../../data/input.txt");
+        }
+
+        auto state = State(_if, sd_root);
+        _if.close();
+    }
+
+    void TearDown() override {
+        sd_root = { };//{ CELL_NONE, Color::Empty, 0 };
+    }
+
+    static inline StateData sd_root { };
+    State state;
+    std::ifstream _in;
+};
+
+TEST_F(SamegameTest, StateDataIsCopyAssignable) {
+
+    StateData sd { };
+    sd = *state.p_data;
+
+    ASSERT_EQ(sd, *state.p_data);
+}
+
+TEST_F(SamegameTest, StateDataIsCopyInitializable) {
+
+    StateData sd { *state.p_data };
+
+    ASSERT_EQ(sd, *state.p_data);
+}
+
+TEST_F(SamegameTest, MoveDataMethodWorks) {
+
+    StateData sd1 {  };
+    state.move_data(&sd1);
+
+    EXPECT_EQ(sd1, *state.p_data);
+    EXPECT_EQ(&sd1, state.p_data);
+
+    StateData* sd2 = new StateData();
+    state.move_data(sd2);
+
+    EXPECT_EQ(sd2, state.p_data);
+    EXPECT_EQ(*sd2, *state.p_data);
+}

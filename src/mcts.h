@@ -9,14 +9,7 @@
 #include "types.h"
 
 
-// template<class Entry, int Size>
-// struct HashTable {
-//   Entry* operator[](Key key) { return &table[(uint32_t)key & (Size - 1)]; }
-//   private:
-//  std::vector<Entry> table = std::vector<Entry>(Size);
-//    };
-
-namespace mcts {
+ namespace mcts {
 
 
 const int MAX_PLY         = 128;

@@ -61,12 +61,14 @@ set( SOURCES ${samegame_src} ${mcts_src} )
 
 # The main program
 add_library( sg_mcts STATIC ${SOURCES} )
-target_link_directories( sg_mcts PUBLIC ${SRC_DIR} )
+target_link_libraries( sg_mcts PRIVATE spdlog::spdlog )
+target_include_directories( sg_mcts PUBLIC ${SRC_DIR} )
 
+#target_link_directories( sg_mcts PUBLIC ${SRC_DIR} )
 
 # target for the source tests using GTest
-add_executable( test_sources ${SRC_TESTS_SOURCES} )
-target_link_libraries( test_sources PRIVATE sg_mcts gtest_main spdlog::spdlog )
+add_executable( test_sources ${SRC_TESTS_SOURCES} ${SOURCES} )
+target_link_libraries( test_sources PRIVATE gtest_main )
 target_include_directories( test_sources PUBLIC ${SRC_DIR} )
 
 # list(FILTER SOURCES EXCLUDE REGEX ".*main.cpp")

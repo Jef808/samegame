@@ -99,7 +99,7 @@ namespace Random {
     }
 
     // Return a random choice, or a NULL cd
-    ClusterData choose(const ClusterDataVec& choices)
+    ClusterData choose(const sg::State::ClusterDataVec& choices)
     {
         if (choices.empty())
             return ClusterData { CELL_NONE, Color::Empty, 0 };
@@ -140,7 +140,6 @@ bool Agent::computation_resources()
 Agent::Agent(State& state)
     : state(state)
 {
-
 }
 
 //******************************** Main methods ***************************/
@@ -152,11 +151,10 @@ Agent::Agent(State& state)
 //             NOT MEMORY ALLOCATION
 /////////////////////////////////////////
 
-StateData get_root_sd(const State& state)
+StateData copy_sd(const State& state)
 {
-    StateData ret { state.cells(), state.key(), state.n_empty_rows() };
-
-    return ret;
+    return { state.cells(), state.key(), state.n_empty_rows() };
+    //return ret;
     // std::copy(state.cells().begin(), state.cells().end(), ret.cells.begin());
     // ret.cells = state.cells();
     // ret.key = state.key();
@@ -174,20 +172,14 @@ void Agent::set_root()
     actions = {{}};
     stack = {{}};
 
-    // NOTE: Since we use actions[ply-1] to retrieve the 'sg_value_from_root' of the path when exploring
-    // a new node. It also needs to work for the first node to be explored, with a value of 0.
-    actions[0] = &EDGE_NONE;    // Will be assigned to root->parent
-
-    // NOTE: We want to zero out the state stack but since the current state might live in it, we reserve
-    // the first entry for making a copy there and only zero-out states[1] onwards.
-
-    // Copy what's needed from the state's data (it might be living at states[i] for some i)
-    states[0] = StateData { state.cells(), state.key(), state.n_empty_rows(), 0, nullptr };
-
-    // Move the state's data pointer to states[0]
+    spdlog::debug("Before rerooting:\n{}\n", state);
+    //states[0] = StateData { };
+    states[0] = *(state.p_data);
     state.p_data = &(states[0]);
 
-    std::fill(states.begin() + 1, states.end(), StateData {});
+    spdlog::debug("After rerooting:\n{}\n", state);
+
+    actions[0] = &EDGE_NONE;
 
     // Set the pointer to root node
     root = nodes[1] = get_node(state);
@@ -767,7 +759,6 @@ void Agent::set_max_iterations(int i)
 {
     max_iterations = i;
 }
-
 
 ///////////////////////////
 // FOR BENCHMARKING AND RUNNING TESTS

@@ -14,28 +14,27 @@
 #include <thread>
 #include <utility>
 #include <vector>
-#include "samegame.h"
 #include "dsu.h"
+#include "samegame.h"
 #include "types.h"
 //#include "debug.h"
 
 namespace sg {
 
+using Cluster = State::Cluster;
+using DSU = details::DSU<Cluster, MAX_CELLS>;
+
 // ************************  Constants for sentinel values ********************* //
 
-const Cluster CLUSTER_NONE = {};
-const std::vector<Cell> CLUSTER_VEC_NONE = { CELL_NONE };
+const Cluster CLUSTER_NONE = Cluster ( CELL_NONE );
 const ClusterData CLUSTERD_NONE = { CELL_NONE, Color::Empty, 0 };
 
 // **************************  DSU  ********************************************* //
-
 namespace details {
 
-    DSU dsu = DSU { };
+    DSU dsu = sg::DSU();
 
-} // namespace details
-
-
+} // namespace
 // ***************************  Randomization  ********************************** //
 
 namespace Random {
@@ -129,6 +128,32 @@ namespace Zobrist {
 
 } // namespace Zobrist
 
+
+//************************************ Utility functions ******************************/
+
+/**
+ * Check if a cell has some neighbor with the same color
+ * on its RIGHT or DOWNWARDS
+ *
+ * NOTE: If called with an empty cell, it will return true if a
+ * neighbor is also empty.
+ */
+bool same_color_bottom_right(const Grid& grid, const Cell cell)
+{
+    const Color color = grid[cell];
+    // check right
+    if (cell % WIDTH != 0 && grid[cell + 1] == color) {
+        return true;
+    }
+    // check down
+    if (cell < CELL_BOTTOM_LEFT && grid[cell + WIDTH] == color) {
+        return true;
+    }
+
+    return false;
+}
+
+
 //*************************************** Game logic **********************************/
 
 
@@ -155,32 +180,60 @@ void State::init()
     }
 }
 
+State::State(StateData& sd)
+    : p_data ( &sd )
+    , colors { 0 }
+{}
+
+/**
+ * Populates the grid with the input and computes the key and
+ * color counter in one pass.
+ */
 State::State(std::istream& _in, StateData& sd)
-    : p_data(&sd)
+    : p_data ( &sd )
     , colors { 0 }
 {
     int _in_color = 0;
     Grid& cells = p_data->cells;
+    Key key = 0;
+    bool row_empty;
+    p_data->n_empty_rows = 0;
 
-    for (int i = 0; i < HEIGHT; ++i) {
-        for (int j = 0; j < WIDTH; ++j) {
+    for (int row = 0; row < HEIGHT; ++row)
+    {
+        row_empty = true;
+
+        for (int col = 0; col < WIDTH; ++col)
+        {
             _in >> _in_color;
             const Color color = to_enum<Color>(_in_color + 1);
-            cells[j + i * WIDTH] = color;
-            ++colors[color];
+            cells[col + row * WIDTH] = color;
+
+            // Generate the helper data at the same time
+            if (color != Color::Empty) {
+                row_empty = false;
+                key ^= Zobrist::cellColorKey(col + row * WIDTH, color);
+                ++colors[color];
+            }
+        }
+
+        // Count the number of empty rows (we're going from top to down)
+        if (row_empty) {
+            ++p_data->n_empty_rows;
         }
     }
 
-    p_data->key = compute_key();
+    p_data->key = key;
 }
 
-void State::populate_color_counter()
-{
-    const auto& grid = cells();
-    for (auto it = grid.cbegin(); it != grid.cend(); ++it) {
-        ++colors[*it];
-    }
-}
+// NOTE: Can def be done at construction and subsequently adjusted when applying actions
+// void State::populate_color_counter()
+// {
+//     const auto& grid = cells();
+//     for (auto it = grid.cbegin(); it != grid.cend(); ++it) {
+//         ++colors[*it];
+//     }
+// }
 
 Color State::get_color(const Cell cell) const
 {
@@ -190,8 +243,12 @@ Color State::get_color(const Cell cell) const
 void State::set_color(const Cell cell, const Color color)
 {
     p_data->cells[cell] = color;
-    // Grid& m_cells = p_data->cells;
-    // m_cells[cell] = color;
+}
+
+void State::move_data(StateData* _sd)
+{
+    *_sd = *p_data;
+    p_data = _sd;
 }
 
 int State::n_empty_rows() const
@@ -260,78 +317,136 @@ void State::pull_cells_left()
     }
 }
 
-// NOTE: Can return empty vector
-ClusterDataVec State::valid_actions_data() const
+
+//******************************* MAKING MOVES ***********************************/
+void generate_clusters(const State& state)
 {
-    generate_clusters();
+    using details::dsu;
+
+    const Grid& grid = state.cells();
+    auto n_empty_rows = state.n_empty_rows();
+    bool row_empty = true;
+
+    auto row = HEIGHT - 1;
+    // Iterate from bottom row upwards so we can stop at the first empty row.
+    while (row > n_empty_rows - 1)
+    {
+        // All the row except last cell
+        for (auto cell = row * WIDTH; cell < (row + 1) * WIDTH - 1; ++cell) {
+            if (grid[cell] == Color::Empty) {
+                continue;
+            }
+            row_empty = false;
+            // compare up
+            if (grid[cell] == grid[cell - WIDTH]) {
+                dsu.unite(cell, cell - WIDTH);
+            }
+            // compare right
+            if (grid[cell] == grid[cell + 1]) {
+                dsu.unite(cell, cell + 1);
+            }
+        }
+        // If the last cell of the row is empty
+        if (grid[(row + 1) * WIDTH - 1] == Color::Empty) {
+            if (row_empty) {
+                return;
+            }
+            continue;
+        }
+        // If it is not empty, compare up
+        if (grid[(row + 1) * WIDTH - 1] == grid[row * WIDTH - 1]) {
+            dsu.unite((row + 1) * WIDTH - 1, row * WIDTH - 1);
+        }
+        --row;
+        row_empty = true;
+    }
+    // The upmost non-empty row: only compare right
+    for (auto cell = 0; cell < CELL_UPPER_RIGHT - 1; ++cell) {
+        if (grid[cell] == Color::Empty) {
+            continue;
+        }
+        if (grid[cell] == grid[cell + 1]) {
+            dsu.unite(cell, cell + 1);
+        }
+    }
+}
+
+// NOTE: Can return empty vector
+State::ClusterDataVec State::valid_actions_data() const
+{
+    using details::dsu;
+
+    generate_clusters(*this);
     ClusterDataVec ret {};
     ret.reserve(MAX_CELLS);
 
-    for (auto it = details::dsu.begin(); it != details::dsu.end(); ++it) {
-        if (get_color(it->rep) == Color::Empty || details::dsu.find_rep(it->rep) != it->rep) {
+    for (auto it = dsu.begin(); it != dsu.end(); ++it) {
+        if (dsu.get_cluster(it->rep).size() < 2) {
             continue;
         }
-        ret.emplace_back(it->rep, get_color(it->rep), it->size());
-        //ClusterData cd { it->rep, get_color(it->rep), it->size() };
-        //ret.push_back(cd);
+    ret.emplace_back(it->rep, get_color(it->rep), it->size());
+    //ClusterData cd { it->rep, get_color(it->rep), it->size() };
+    //ret.push_back(cd);
     }
     return ret;
 }
 
-//******************************* MAKING MOVES ***********************************/
+// void State::generate_clusters() const //(State& state);
+// {
+//     using details::dsu;
 
-void State::generate_clusters() const
-{
-    DSU& dsu = details::dsu;
-    dsu.reset();
+//     dsu.reset();
 
-    Grid& m_cells = p_data->cells;
-    p_data->n_empty_rows = 0;
-    bool row_empty = false;
-    int j = HEIGHT - 1;
+//     const Grid& m_cells = p_data->cells;
+//     int n_empty_rows = p_data->n_empty_rows;
+//     bool row_empty = false;
 
-    // Iterate from bottom row to the second row
-    while (j > 0) {
-        row_empty = true;
-        // All row except last cell
-        for (int i = j * WIDTH; i < j * WIDTH + WIDTH - 1; ++i) {
-            // compare up
-            if (m_cells[i] != Color::Empty && m_cells[i] == m_cells[i - WIDTH]) {
-                details::dsu.unite(i, i - WIDTH);
-                row_empty = false;
-            }
-            // compare right
-            if (m_cells[i] != Color::Empty && m_cells[i] == m_cells[i + 1]) {
-                details::dsu.unite(i, i + 1);
-                row_empty = false;
-            }
-        }
-        // Last cell, compare up
-        if (m_cells[j * WIDTH + WIDTH - 1] != Color::Empty && m_cells[j * WIDTH + WIDTH - 1] == m_cells[j * WIDTH - 1]) {
-            details::dsu.unite(j * WIDTH + WIDTH - 1, j * WIDTH - 1);
-            row_empty = false;
-        }
-        // If we saw an empty row, there is nothing above either
-        if (row_empty) {
-            p_data->n_empty_rows = j+1;
-            break;
-        }
-        --j;
-    }
-    // First row
-    if (!row_empty) {
-        row_empty = true;
-        for (int i = 0; i < WIDTH - 1; ++i) {
-            if (m_cells[i] != Color::Empty && m_cells[i] == m_cells[i + 1]) {
-                details::dsu.unite(i, i + 1);
-                row_empty = false;
-            }
-        }
+//     // Iterate from bottom row to the second row
+//     for (auto row = HEIGHT - 1; row > n_empty_rows; --row) {
+//         row_empty = true;
+//         // All row except last cell
+//         for (int cell = row * WIDTH; cell < (row + 1) * WIDTH - 1; ++cell) {
+//             if (m_cells[cell] == Color::Empty) {
+//                 continue;
+//             }
+//             // compare up
+//             if (m_cells[cell - WIDTH] == m_cells[cell]) {
+//                 dsu.unite(cell - WIDTH, cell);
+//                 row_empty = false;
+//             }
+//             // compare right
+//             if (m_cells[cell + 1] == m_cells[cell]) {
+//                 dsu.unite(cell + 1, cell);
+//                 row_empty = false;
+//             }
+//         }
+//         // Last cell, if empty and rest of row was empty, we're done
+//         if (m_cells[(row + 1) * WIDTH - 1] == Color::Empty) {
+//             if (row_empty) {
+//                 p_data->n_empty_rows = row + 1;
+//                 return;
+//             }
+//         }
+//         if (m_cells[(row + 1) * WIDTH - 1] == m_cells[row * WIDTH - 1]) {
+//             dsu.unite(row * WIDTH + WIDTH - 1, row * WIDTH - 1);
+//             row_empty = false;
+//         }
+//     }
+//     row_empty = true;
 
-        // Can cast the bool to an int to record whether or not the first row is empty.
-        p_data->n_empty_rows = int(row_empty);
-    }
-}
+//     for (auto cell = 0; cell < CELL_UPPER_RIGHT; ++cell) {
+//         if (m_cells[cell] == Color::Empty) {
+//             continue;
+//         }
+//         if (m_cells[cell] == m_cells[cell + 1]) {
+//             dsu.unite(cell, cell + 1);
+//             row_empty = false;
+//         }
+//     }
+
+//     // We can cast the bool to an int to record whether or not the first row is empty.
+//     p_data->n_empty_rows = int(row_empty);
+// }
 
 /**
  * Method to kill a cluster in case the whole cluster is
@@ -487,32 +602,6 @@ ClusterData State::apply_random_action()
     return cd;
 }
 
-// ClusterData State::apply_random_action_generating()
-// {
-//     auto cd = kill_random_valid_cluster_generating();
-//     if (cd.color == Color::Empty) {
-//         return CLUSTERD_NONE;
-//     }
-//     if (cd.size > 1) {
-//         pull_cells_down();
-//         pull_cells_left();
-//     }
-
-//     return cd;
-// }
-
-// Need a ClusterData object if undoing multiple times in a row!!!!
-// void State::undo_action(Action action)
-// {
-//     // Simply revert the data
-//     p_data = p_data->previous;
-
-//     // Use the action to reincrement the color counter
-//     auto cluster = get_cluster_blind(action);
-//     const Color color = get_color(cluster.rep);
-//     colors[color] += cluster.size();
-// }
-
 void State::undo_action(const ClusterData& cd)
 {
     // Simply revert the data
@@ -591,42 +680,60 @@ Cluster State::get_cluster_blind(const Cell cell) const
 
 }
 
-//********************************  Bitwise methods  ***********************************/
+
+///////////////////////////////////////////////////////////////////////////////
+// TODO: I can scrap most of that... with the Zobrish scheme being to just
+//       XOR the key of each cell, it's going to be easier to implemnt the
+//       computation of the keys during calls to kill_cluster and pull_cells()
+///////////////////////////////////////////////////////////////////////////////
 
 /**
  * Iterate through the cells like in the generate_clusters() method,
  * but returns false as soon as it identifies a cluster.
  */
-bool State::has_nontrivial_cluster() const
+bool has_nontrivial_cluster(const State& state)
 {
-    const Grid& m_cells = cells();
-    p_data->n_empty_rows = 0;
-    int j = HEIGHT - 1;
+    const Grid& grid = state.cells();
+    auto n_empty_rows = state.n_empty_rows();
+    bool row_empty = true;
 
-    // Iterate from bottom row to the second row
-    while (j > 0) {
-        // All row except last cell
-        for (int i = j * WIDTH; i < j * WIDTH + WIDTH - 1; ++i) {
+    auto row = HEIGHT - 1;
+    // Iterate from bottom row upwards so we can stop at the first empty row.
+    while (row > n_empty_rows)
+    {
+        // All the row except last cell
+        for (auto cell = row * WIDTH; cell < (row + 1) * WIDTH - 1; ++cell) {
+            if (grid[cell] == Color::Empty) {
+                continue;
+            }
+            row_empty = false;
             // compare up
-            if (m_cells[i] != Color::Empty && m_cells[i] == m_cells[i - WIDTH]) {
-                return false;
+            if (grid[cell] == grid[cell - WIDTH]) {
+                return true;
             }
             // compare right
-            if (m_cells[i] != Color::Empty && m_cells[i] == m_cells[i + 1]) {
-                return false;
+            if (grid[cell] == grid[cell + 1]) {
+                return true;
             }
         }
-        // Last cell, compare up
-        if (m_cells[j * WIDTH + WIDTH - 1] != Color::Empty && m_cells[j * WIDTH + WIDTH - 1] == m_cells[j * WIDTH - 1]) {
-            return false;
+        // If the last cell of the row is empty
+        if (grid[(row + 1) * WIDTH - 1] == Color::Empty) {
+            if (row_empty) {
+                return false;
+            }
+            continue;
         }
-        --j;
+        // If not (compare up)
+        if (grid[(row + 1) * WIDTH - 1] == grid[row * WIDTH]) {
+            return true;
+        }
+        --row;
+        row_empty = true;
     }
-    // First row
-
-    for (int i = 0; i < WIDTH - 1; ++i) {
-        if (m_cells[i] != Color::Empty && m_cells[i] == m_cells[i + 1]) {
-            return false;
+    // The upmost non-empty row: only compare right
+    for (auto cell = 0; cell < CELL_UPPER_RIGHT - 1; ++cell) {
+        if (grid[cell] != Color::Empty && grid[cell + 1] == grid[cell]) {
+            return true;
         }
     }
 
@@ -634,91 +741,138 @@ bool State::has_nontrivial_cluster() const
 }
 
 /**
- * Check if a cell has some neighbor with the same color
- * on its right or upwards.
+ * Check if the neighbor at the right or on top of a cell has the same color.
  *
  * NOTE: If called with an empty cell, it will return true if a
  * neighbor is also empty.
  */
-bool same_color_adjacent(const Grid& grid, auto cell_it)
+bool same_color_right_up(const Grid& grid, const Cell cell)
 {
-    const Color color = *cell_it;
-    const auto ndx = std::distance(grid.cbegin(), cell_it);
-
-    // check right
-    bool right_nbh = ndx % WIDTH != 0 && grid[ndx + 1] == color;
-    // check down
-    bool down_nbh = ndx < CELL_BOTTOM_LEFT && grid[ndx + WIDTH] == color;
-
-    return right_nbh || down_nbh;
+    const Color color = grid[cell];
+    // check right if not already at the right edge of the grid
+    if (cell % (WIDTH - 1) != 0 && grid[cell + 1] == color) {
+        return true;
+    }
+    // check up if not on the first row
+    if (cell > CELL_UPPER_RIGHT && grid[cell - WIDTH] == color) {
+        return true;
+    }
+    return false;
 }
 
 /**
  * Xor with a unique random key for each (index, color) appearing in the grid.
- * Indicate that clusters have not yet been generated (so is_terminal() is not
- * checked) by switched the least significant bit on.
+ * Also compute is_terminal() (Key will have first bit on once is_terminal() is known,
+ * and it will be terminal iff the second bit is on).
+ * Also records the number of empty rows in passing.
  */
-Key State::compute_key() const
+Key compute_key(const State& state)
 {
-    Key& key = p_data->key = 0;
+    const auto& grid = state.cells();
 
-    const Grid& grid = cells();
-    bool terminal_status_known = false;
+    auto n_empty_rows = state.n_empty_rows();
+    Key key = 0;
+    bool row_empty = false, terminal_status_known = false;
 
-    // XOR with each key corresponding to a (cell, color) pair in the grid
-    for (auto cell_it = grid.cbegin(); cell_it != grid.cend(); ++cell_it) {
-        if (*cell_it != Color::Empty) {
-            key ^= Zobrist::cellColorKey(std::distance(grid.cbegin(), cell_it), *cell_it);
-            // If the terminal status of the status is known, continue
-            if (terminal_status_known) {
-                continue;
-            }
-            // Otherwise keep checking for nontrivial cluster
-            if (same_color_adjacent(grid, cell_it)) {
-                key += 1;
-                terminal_status_known = true;
+    for (auto row = HEIGHT - 1; row > n_empty_rows-1; --row)
+    {
+        row_empty = true;
+
+        for (auto cell = row * WIDTH; cell < (row + 1) * WIDTH; ++cell)
+        {
+            if (const Color color = grid[cell]; color != Color::Empty) {
+                row_empty = false;
+
+                key ^= Zobrist::cellColorKey(cell, color);
+
+                // If the terminal status of the state is known, continue
+                if (terminal_status_known) {
+                    continue;
+                }
+                // Otherwise keep checking for nontrivial clusters upwards and forward
+                if (same_color_right_up(grid, cell)) {
+                    // Indicate that terminal status is known
+                    terminal_status_known = true;
+                }
             }
         }
+
+        if (row_empty) {
+            n_empty_rows = row + 1;
+            break;
+        }
     }
-    // If by now terminal status is NOT known, the state has to be terminal
-    if (!terminal_status_known) {
-        key += 3;
-    }
+
+    // flip the first bit if we found out state was non-terminal earlier,
+    // otherwise flip both the first and second bit.
+    key += terminal_status_known ? 1 : 3;
 
     return key;
 }
 
-bool key_uninitialized(const Grid& grid, Key key) {
+// Key State::compute_key() const
+// {
+//     Key& key = p_data->key = 0;
+
+//     const Grid& grid = cells();
+//     bool terminal_status_known = false;
+
+//     // First row
+//     // XOR with each key corresponding to a (cell, color) pair in the grid
+//     for (int y = 0; y<HEIGHT; ++y) {
+//         for (int x = 0; x < WIDTH; ++x) {
+
+//         const Color color = grid[i];
+
+//         if (color != Color::Empty) {
+//             key ^= Zobrist::cellColorKey(i, color);
+//             // If the terminal status of the status is known, continue
+//             if (terminal_status_known) {
+//                 continue;
+//             }
+//             // Otherwise keep checking for nontrivial cluster
+//             if (same_color_right_up(grid, i)) {
+//                 key += 1;
+//                 terminal_status_known = true;
+//             }
+//         }
+//     }
+//     // If by now terminal status is NOT known, the state has to be terminal
+//     if (!terminal_status_known) {
+//         key += 3;
+//     }
+
+//     return key;
+// }
+
+bool key_uninitialized(const Grid& grid, Key key)
+{
         return key == 0 && grid[CELL_BOTTOM_LEFT] != Color::Empty;
-};
+}
 
 Key State::key() const
 {
     if (key_uninitialized(p_data->cells, p_data->key)) {
-        p_data->key = compute_key();
+        p_data->key = compute_key(*this);
     }
 
     return p_data->key;
 }
 
 /**
- * Check if there are any clusters of size at least 2. The non-const comes from the
- * fact that the result will be encoded in the state's key to avoid checking twice.
+ * First check if the key contains the answer, check for clusters but return
+ * false as soon as it finds one.
  */
 bool State::is_terminal() const
 {
-    auto key_uninitialized = [](const Grid& grid, Key key) {
-        return key == 0 && grid[CELL_BOTTOM_LEFT] != Color::Empty;
-    };
+    Key key = p_data->key;
 
-    const Key& key = p_data->key;
-
-    // If the key hasn't been computed, compute manually
-    if (key_uninitialized(cells(), key)) {
-        return !has_nontrivial_cluster();
+    // If the first bit is on, then it has been computed and stored in the second bit.
+    if (key & 1) {
+        return key & 2;
     }
-    // Otherwise, the result of is_terminal is encoded in the second bit.
-    return key & 2;
+
+    return !has_nontrivial_cluster(*this);
 }
 
 // DEPRECATED
@@ -1138,6 +1292,19 @@ string to_string(const State_Action<Cluster>& sa, sg::Output output_mode)
     return ss.str();
 }
 
+// template < >
+// ostream& operator<<(ostream& _out, const Cluster& cluster)
+// {
+//     _out << "Rep= " << cluster.rep << " { ";
+//     for (auto it = cluster.members.cbegin();
+//          it != cluster.members.cend();
+//          ++it)
+//     {
+//         _out << *it << ' ';
+//     }
+//     return _out << " }";
+// }
+
 template < typename _Cluster >
 ostream& operator<<(ostream& _out, const State_Action<_Cluster>& sa);
 
@@ -1162,18 +1329,9 @@ ostream& operator<<(ostream& _out, const State& state)
 //****************************** PRINTING BOARDS ************************/
 
 
-const Cluster* State::dsu_cbegin() const
-{
-    return details::dsu.cbegin();
-}
-const Cluster* State::dsu_cend() const
-{
-    return details::dsu.cend();
-}
-
 void State::enumerate_clusters(ostream& _out) const
 {
-    generate_clusters();
+    generate_clusters(*this);
 
     for (auto it = details::dsu.begin();
          it != details::dsu.end();
@@ -1184,7 +1342,7 @@ void State::enumerate_clusters(ostream& _out) const
 
 void State::view_clusters(ostream& _out) const
 {
-    generate_clusters();
+    generate_clusters(*this);
 
     for (auto it = details::dsu.cbegin();
          it != details::dsu.cend();
@@ -1197,14 +1355,46 @@ void State::view_clusters(ostream& _out) const
     }
 }
 
-
-bool operator==(const Cluster& a, const Cluster& b)
-{
-    return a.rep == b.rep && a.members == b.members;
+bool operator==(const StateData& a, const StateData& b) {
+    if (a.ply != b.ply) {
+        return false;
+    }
+    if (a.key != 0 && b.key != 0) {
+        return a.key == b.key;
+    }
+    for (int i=0; i<MAX_CELLS; ++i) {
+        if (a.cells[i] != b.cells[i]) {
+            return false;
+        }
+    }
+    return true;
 }
+
+// /**
+//  * When comparing clusters, only look at the (unordered) members,
+//  * the representatives don't matter as long as the members are the same.
+//  */
+// template < typename _Index_T >
+// bool operator==(const ClusterT<_Index_T>& a, const ClusterT<_Index_T>& b) {
+//     if (a.size() != b.size()) {
+//         return false;
+//     }
+
+//     // Sort to make the two containers comparable
+//     std::sort(a.members.begin(), a.members.end());
+//     std::sort(b.members.begin(), b.members.end());
+
+//     for (auto i = 0; i < a.members.size(); ++i) {
+//         if (a.members[i] != b.members[i]) {
+//             return false;
+//         }
+//     }
+//     return true;
+// }
+
 bool operator==(const ClusterData& a, const ClusterData& b)
 {
-    return a.color == b.color && a.size == b.size && a.rep == b.rep;
+    return a.rep == b.rep && a.color == b.color && a.size == b.size;
 }
 
 } //namespace sg

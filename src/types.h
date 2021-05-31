@@ -36,6 +36,7 @@ namespace sg {
 
   using Cell = int;
   auto constexpr const CELL_BOTTOM_LEFT = (HEIGHT - 1) * WIDTH;
+  auto constexpr const CELL_UPPER_RIGHT = WIDTH - 1;
   auto constexpr const CELL_NONE = MAX_CELLS;
 
   inline const std::string to_string(const Color& color)

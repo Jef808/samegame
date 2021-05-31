@@ -329,7 +329,7 @@ void generate_clusters(const State& state)
 
     auto row = HEIGHT - 1;
     // Iterate from bottom row upwards so we can stop at the first empty row.
-    while (row > n_empty_rows - 1) {
+    while (row > n_empty_rows) {
         // All the row except last cell
         for (auto cell = row * WIDTH; cell < (row + 1) * WIDTH - 1; ++cell) {
             if (grid[cell] == Color::Empty) {
@@ -616,7 +616,7 @@ Key compute_key(const State& state)
     Key key = 0;
     bool row_empty = false, terminal_status_known = false;
 
-    for (auto row = HEIGHT - 1; row > n_empty_rows - 1; --row) {
+    for (auto row = HEIGHT - 1; row > n_empty_rows-1; --row) {
         row_empty = true;
 
         for (auto cell = row * WIDTH; cell < (row + 1) * WIDTH; ++cell) {
@@ -1341,6 +1341,8 @@ void State::view_clusters(ostream& _out) const
     for (auto it = details::dsu.cbegin();
          it != details::dsu.cend();
          ++it) {
+        assert(it->rep < MAX_CELLS && it->rep > -1);
+
         if (it->size() > 1 && it->rep == details::dsu.find_rep(it->rep) && get_color(it->rep) != Color::Empty) { //size() > 1) {
             auto sa = State_Action<Cluster>(*this, *it);
             spdlog::info("\n{}\n", sa);
@@ -1365,27 +1367,27 @@ bool operator==(const StateData& a, const StateData& b)
     return true;
 }
 
-// /**
-//  * When comparing clusters, only look at the (unordered) members,
-//  * the representatives don't matter as long as the members are the same.
-//  */
-// template < typename _Index_T >
-// bool operator==(const ClusterT<_Index_T>& a, const ClusterT<_Index_T>& b) {
-//     if (a.size() != b.size()) {
-//         return false;
-//     }
+/**
+ * When comparing clusters, only look at the (unordered) members,
+ * the representatives don't matter as long as the members are the same.
+ */
+template < typename _Index_T >
+bool operator==(const ClusterT<_Index_T>& a, const ClusterT<_Index_T>& b) {
+    if (a.size() != b.size()) {
+        return false;
+    }
 
-//     // Sort to make the two containers comparable
-//     std::sort(a.members.begin(), a.members.end());
-//     std::sort(b.members.begin(), b.members.end());
+    // Sort to make the two containers comparable
+    std::sort(a.members.begin(), a.members.end());
+    std::sort(b.members.begin(), b.members.end());
 
-//     for (auto i = 0; i < a.members.size(); ++i) {
-//         if (a.members[i] != b.members[i]) {
-//             return false;
-//         }
-//     }
-//     return true;
-// }
+    for (auto i = 0; i < a.members.size(); ++i) {
+        if (a.members[i] != b.members[i]) {
+            return false;
+        }
+    }
+    return true;
+}
 
 bool operator==(const ClusterData& a, const ClusterData& b)
 {

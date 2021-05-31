@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include <sstream>
 #include <iosfwd>
+#include <limits>
 #include "samegame.h"
 #include "types.h"
 
@@ -96,52 +97,49 @@ public:
   bool debug_tree_policy  = false;
   double get_exploration_cst() const;
 
-  // Data
-  State& state;
-  Node* root;
   //StateData root_sd;
 
   // Counters for bookkeeping
-  int cnt_iterations;
-  int cnt_simulations;
-  int cnt_descent;
-  int cnt_explored_nodes;
-  int cnt_rollout;
-  int cnt_new_nodes;
+  int cnt_iterations  = 0;
+  int cnt_simulations = 0;
+  int cnt_descent     = 0;
+  int cnt_explored_nodes = 0;
+  int cnt_rollout = 0;
+  int cnt_new_nodes = 0;
   // Tree statistics
-  double value_global_max;
-  double value_global_min;
-  double value_global_avg;
-  int    global_max_depth;
+  double value_global_max = std::numeric_limits<double>::min();
+  double value_global_min = std::numeric_limits<double>::max();
+  double value_global_avg = 0;
+  int    global_max_depth = 1;
 
+  // Data
+  State& state;
+  Node* root;
   // To keep track of the data during the search (indexed by ply)
   std::array<Node*, MAX_PLY>         nodes;       // Elements are stored in the MCTSLookupTable
   std::array<Edge*, MAX_PLY>         actions;     // Elements are stored in their parent node
   std::array<StateData, MAX_PLY>     states;      // To keep history of states along a branch (stored on the heap)
   std::array<SearchData, MAX_PLY>    stack;       // To perform the playout samplings without creating new nodes
 private:
-  int ply;
+  int    ply             = 1;
   double exploration_cst = EXPLORATION_CST;
   int    max_iterations  = MAX_ITER;
 };
 
 struct Edge {
   sg::ClusterData  cd { sg::CELL_NONE, sg::Color::Empty, 0 };
-  int     sg_value_from_root { 0 };
-  int     val_best { 0 };
-  Reward  reward_avg_visit { 0 };
-  int     n_visits { 0 };
+  int              sg_value_from_root { 0 };
+  int              val_best { 0 };
+  Reward           reward_avg_visit { 0 };
+  int              n_visits { 0 };
 };
 
 struct Node {
   using Edges = std::vector<Edge>;
-  Key      key { 0 };
-  int      n_visits { 0 };
-  int      n_children { 0 };
-  //int      n_expanded_children { 0 };
-  //Edge*    parent;    // NOTE: There could be many with repeated states... better to use our edge stack
-  Edges    children { };
-  //int      sg_value_from_root;
+  Key              key { 0 };
+  int              n_visits { 0 };
+  int              n_children { 0 };
+  Edges            children { {} };
 
   Edges& children_list() { return children; }
 };

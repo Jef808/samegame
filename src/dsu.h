@@ -2,6 +2,7 @@
 #define __DSU_H_
 
 #include <array>
+#include <cassert>
 #include <iosfwd>
 #include <memory>
 #include <spdlog/fmt/ostr.h> // For fmt to recognize the operator<< of ClusterT
@@ -78,6 +79,7 @@ namespace details {
         DSU()
             : m_clusters { Cluster() }
         {
+            //reset();
         }
 
         void reset()
@@ -96,6 +98,8 @@ namespace details {
         // But in my case, since the algorithm is probably about to kill that cluster, I don't know if it matters much
         Index find_rep(Index ndx)
         {
+            assert(ndx < N);
+
             bool not_the_rep = m_clusters[ndx].rep != ndx;
 
             if (not_the_rep) {

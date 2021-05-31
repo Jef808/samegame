@@ -19,6 +19,7 @@ using namespace sg;
 namespace mcts {
 
 const Action ACTION_NONE = CELL_NONE;
+Edge   EDGE_NONE = { ClusterData(sg::CELL_NONE, sg::Color::Empty, 0), 0, 0, 0, 0 };
 
 std::ostream& operator<<(std::ostream& _out, const mcts::Agent& agent)
 {
@@ -46,7 +47,7 @@ std::ostream& operator<<(std::ostream& _out, const ::mcts::Node& node)
 
 MCTSLookupTable MCTS {};
 
-Edge EDGE_NONE = {};
+//Edge EDGE_NONE = {};
 
 // get_node queries the Lookup Table until it finds the node with given position,
 // or creates a new entry in case it doesn't find it.
@@ -136,24 +137,31 @@ bool Agent::computation_resources()
 
 //******************************** Ctor(s) *******************************/
 
+// TODO: The problem right now is with the actions stack not getting initialized
 Agent::Agent(State& state)
     : state(state)
     , root(nullptr)
-    //, root_sd()
+    , ply(1)//, root_sd()
+    , cnt_iterations(0)
 {
     reset();
     states[0] = *state.p_data;
     state.p_data = &(states[0]);
     root = nodes[1] = get_node(state);
+
+    actions[0] = &EDGE_NONE;
 }
 
 //******************************** Main methods ***************************/
 
 /////////////////////////////////////////
-// 'ZERO-INIT' OF A MCTS SEARCH
-//     THINK: (RE)BASING OF AN INITIAL STATE,
-//             NOT MEMORY ALLOCATION
-/////////////////////////////////////////
+// NEED TO CAREFULLY THINK ABOUT 0-INITIALIZATION.
+// AT EVERY APPLY_ACTION, I WILL USE A StateData object COMING
+// FROM THE STATES stack... AND AT EEVRY STEP OF
+// TREE_POLICY(), WE ASSIGN TO ACTION[i]...
+// THAT'S WHY IT WOULD BE A GOOD IDEA TO 0-INIT ALL THOSE
+// STACKS AT EVERY CALL OF SET_ROOT
+///////////////////////////////////////////
 
 StateData copy_sd(const State& state)
 {
@@ -362,15 +370,15 @@ Reward Agent::rollout_policy(Node* node)
 // simulated playthrough.
 void Agent::init_children()
 {
-    spdlog::debug("Before valid_actions");
+  //  spdlog::debug("Before valid_actions");
 
     auto valid_actions = state.valid_actions_data();
 
     spdlog::debug("after valid_actions: ");
 
-    for (auto act : valid_actions) {
-        spdlog::debug("{}", act);
-    }
+    // for (auto act : valid_actions) {
+    //     spdlog::debug("{}", act);
+    // }
 
     // assert(state.key() == current_node()->key);
     // assert(!is_terminal(current_node()));
@@ -768,6 +776,17 @@ void Agent::reset()
     // Reset configs
     max_iterations = MAX_ITER;
     exploration_cst = EXPLORATION_CST;
+
+    ply = 1;
+    global_max_depth = ply;
+    cnt_iterations = 0;
+    cnt_simulations = 0;
+    cnt_descent = 0;
+    cnt_explored_nodes = 0;
+    cnt_rollout = 0;
+    cnt_new_nodes = 0;
+
+    actions[0] = { };
 }
 
 /////////////////////////////////////////////////////

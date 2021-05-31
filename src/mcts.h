@@ -99,7 +99,7 @@ public:
   // Data
   State& state;
   Node* root;
-  StateData root_sd;
+  //StateData root_sd;
 
   // Counters for bookkeeping
   int cnt_iterations;

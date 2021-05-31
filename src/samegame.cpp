@@ -1,4 +1,7 @@
 // samegame.cpp
+#include "samegame.h"
+#include "dsu.h"
+#include "types.h"
 #include <algorithm>
 #include <array>
 #include <cassert>
@@ -14,9 +17,6 @@
 #include <thread>
 #include <utility>
 #include <vector>
-#include "dsu.h"
-#include "samegame.h"
-#include "types.h"
 //#include "debug.h"
 
 namespace sg {
@@ -26,7 +26,7 @@ using DSU = details::DSU<Cluster, MAX_CELLS>;
 
 // ************************  Constants for sentinel values ********************* //
 
-const Cluster CLUSTER_NONE = Cluster ( CELL_NONE );
+const Cluster CLUSTER_NONE = Cluster(CELL_NONE);
 const ClusterData CLUSTERD_NONE = { CELL_NONE, Color::Empty, 0 };
 
 // **************************  DSU  ********************************************* //
@@ -44,18 +44,18 @@ namespace Random {
         static std::random_device rd;
         static std::mt19937 gen;
 
-    void init()
-    {
-        gen = std::mt19937(rd());
-    }
-
-    struct get {
-        template < typename T >
-        T operator()(std::uniform_int_distribution<T>& _dist)
+        void init()
         {
-            return _dist(gen);
+            gen = std::mt19937(rd());
         }
-    };
+
+        struct get {
+            template <typename T>
+            T operator()(std::uniform_int_distribution<T>& _dist)
+            {
+                return _dist(gen);
+            }
+        };
 
     } // namespace
 
@@ -99,8 +99,13 @@ namespace Zobrist {
 
     std::array<Key, MAX_CELLS * MAX_COLORS> ndx_keys { 0 };
 
-    Key cellColorKey(const Cell cell, const Color color) {
-        return ndx_keys[cell * to_integral(color)];
+    /**
+     * NOTE: The upper left cell in the grid corresponds to 0,
+     * so wee need to increment the cells when computing the key!
+     */
+    Key cellColorKey(const Cell cell, const Color color)
+    {
+        return ndx_keys[(cell + 1) * to_integral(color)];
     }
 
     /**
@@ -128,34 +133,31 @@ namespace Zobrist {
 
 } // namespace Zobrist
 
-
 //************************************ Utility functions ******************************/
 
-/**
- * Check if a cell has some neighbor with the same color
- * on its RIGHT or DOWNWARDS
- *
- * NOTE: If called with an empty cell, it will return true if a
- * neighbor is also empty.
- */
-bool same_color_bottom_right(const Grid& grid, const Cell cell)
-{
-    const Color color = grid[cell];
-    // check right
-    if (cell % WIDTH != 0 && grid[cell + 1] == color) {
-        return true;
-    }
-    // check down
-    if (cell < CELL_BOTTOM_LEFT && grid[cell + WIDTH] == color) {
-        return true;
-    }
+// /**
+//  * Check if a cell has some neighbor with the same color
+//  * on its RIGHT or DOWNWARDS
+//  *
+//  * NOTE: If called with an empty cell, it will return true if a
+//  * neighbor is also empty.
+//  */
+// bool same_color_bottom_right(const Grid& grid, const Cell cell)
+// {
+//     const Color color = grid[cell];
+//     // check right
+//     if (cell % WIDTH != 0 && grid[cell + 1] == color) {
+//         return true;
+//     }
+//     // check down
+//     if (cell < CELL_BOTTOM_LEFT && grid[cell + WIDTH] == color) {
+//         return true;
+//     }
 
-    return false;
-}
-
+//     return false;
+// }
 
 //*************************************** Game logic **********************************/
-
 
 void State::init()
 {
@@ -167,8 +169,7 @@ void State::init()
     // Generate the random keys for the Zobrist hash
     std::uniform_int_distribution<unsigned long long> dis(
         std::numeric_limits<std::uint64_t>::min(),
-        std::numeric_limits<std::uint64_t>::max()
-    );
+        std::numeric_limits<std::uint64_t>::max());
 
     for (auto it = ndx_keys.begin(); it != ndx_keys.end(); ++it) {
 
@@ -181,16 +182,17 @@ void State::init()
 }
 
 State::State(StateData& sd)
-    : p_data ( &sd )
+    : p_data(&sd)
     , colors { 0 }
-{}
+{
+}
 
 /**
  * Populates the grid with the input and computes the key and
  * color counter in one pass.
  */
 State::State(std::istream& _in, StateData& sd)
-    : p_data ( &sd )
+    : p_data(&sd)
     , colors { 0 }
 {
     int _in_color = 0;
@@ -199,12 +201,10 @@ State::State(std::istream& _in, StateData& sd)
     bool row_empty;
     p_data->n_empty_rows = 0;
 
-    for (int row = 0; row < HEIGHT; ++row)
-    {
+    for (int row = 0; row < HEIGHT; ++row) {
         row_empty = true;
 
-        for (int col = 0; col < WIDTH; ++col)
-        {
+        for (int col = 0; col < WIDTH; ++col) {
             _in >> _in_color;
             const Color color = to_enum<Color>(_in_color + 1);
             cells[col + row * WIDTH] = color;
@@ -256,10 +256,11 @@ int State::n_empty_rows() const
     return p_data->n_empty_rows;
 }
 
+//************************************** Grid manipulations **********************************/
+
 // TODO: Only check columns intersecting the killed cluster
-void State::pull_cells_down()
+void pull_cells_down(Grid& grid)
 {
-    Grid& m_cells = p_data->cells;
     // For all columns
     for (int i = 0; i < WIDTH; ++i) {
         // stack the non-zero colors going up
@@ -267,7 +268,7 @@ void State::pull_cells_down()
         int new_height = 0;
 
         for (int j = 0; j < HEIGHT; ++j) {
-            auto bottom_color = m_cells[i + (HEIGHT - 1 - j) * WIDTH];
+            auto bottom_color = grid[i + (HEIGHT - 1 - j) * WIDTH];
 
             if (bottom_color != Color::Empty) {
                 new_column[new_height] = bottom_color;
@@ -276,22 +277,21 @@ void State::pull_cells_down()
         }
         // pop back the value (including padding with 0)
         for (int j = 0; j < HEIGHT; ++j) {
-            m_cells[i + j * WIDTH] = new_column[HEIGHT - 1 - j];
+            grid[i + j * WIDTH] = new_column[HEIGHT - 1 - j];
         }
     }
 }
 
 // TODO: Only check columns (before finding one) intersecting the killed cluster
-void State::pull_cells_left()
+void pull_cells_left(Grid& grid)
 {
-    Grid& m_cells = p_data->cells;
     int i = 0;
     std::deque<int> zero_col;
 
     while (i < WIDTH) {
         if (zero_col.empty()) {
             // Look for empty column
-            while (i < WIDTH - 1 && m_cells[i + (HEIGHT - 1) * WIDTH] != Color::Empty) {
+            while (i < WIDTH - 1 && grid[i + (HEIGHT - 1) * WIDTH] != Color::Empty) {
                 ++i;
             }
             zero_col.push_back(i);
@@ -301,7 +301,7 @@ void State::pull_cells_left()
             int x = zero_col.front();
             zero_col.pop_front();
             // Look for non-empty column
-            while (i < WIDTH && m_cells[i + (HEIGHT - 1) * WIDTH] == Color::Empty) {
+            while (i < WIDTH && grid[i + (HEIGHT - 1) * WIDTH] == Color::Empty) {
                 zero_col.push_back(i);
                 ++i;
             }
@@ -309,7 +309,7 @@ void State::pull_cells_left()
                 break;
             // Swap the non-empty column with the first empty one
             for (int j = 0; j < HEIGHT; ++j) {
-                std::swap(m_cells[x + j * WIDTH], m_cells[i + j * WIDTH]);
+                std::swap(grid[x + j * WIDTH], grid[i + j * WIDTH]);
             }
             zero_col.push_back(i);
             ++i;
@@ -317,11 +317,11 @@ void State::pull_cells_left()
     }
 }
 
-
-//******************************* MAKING MOVES ***********************************/
 void generate_clusters(const State& state)
 {
     using details::dsu;
+
+    dsu.reset();
 
     const Grid& grid = state.cells();
     auto n_empty_rows = state.n_empty_rows();
@@ -329,8 +329,7 @@ void generate_clusters(const State& state)
 
     auto row = HEIGHT - 1;
     // Iterate from bottom row upwards so we can stop at the first empty row.
-    while (row > n_empty_rows - 1)
-    {
+    while (row > n_empty_rows - 1) {
         // All the row except last cell
         for (auto cell = row * WIDTH; cell < (row + 1) * WIDTH - 1; ++cell) {
             if (grid[cell] == Color::Empty) {
@@ -371,6 +370,8 @@ void generate_clusters(const State& state)
     }
 }
 
+//****************************************** Valid actions ***************************************/
+
 // NOTE: Can return empty vector
 State::ClusterDataVec State::valid_actions_data() const
 {
@@ -381,13 +382,11 @@ State::ClusterDataVec State::valid_actions_data() const
     ret.reserve(MAX_CELLS);
 
     for (auto it = dsu.begin(); it != dsu.end(); ++it) {
-        if (dsu.get_cluster(it->rep).size() < 2) {
-            continue;
+        if (it->size() > 1 && get_color(it->rep) != Color::Empty) {
+            ret.push_back(ClusterData { it->rep, get_color(it->rep), it->size() });
         }
-    ret.emplace_back(it->rep, get_color(it->rep), it->size());
-    //ClusterData cd { it->rep, get_color(it->rep), it->size() };
-    //ret.push_back(cd);
     }
+
     return ret;
 }
 
@@ -447,160 +446,6 @@ State::ClusterDataVec State::valid_actions_data() const
 //     // We can cast the bool to an int to record whether or not the first row is empty.
 //     p_data->n_empty_rows = int(row_empty);
 // }
-
-/**
- * Method to kill a cluster in case the whole cluster is
- * known.
- */
-void State::kill_cluster(const Cluster& cluster)
-{
-    const Color color = get_color(cluster.rep);
-
-    // Kill the cells
-    for (const auto cell : cluster.members) {
-        set_color(cell, Color::Empty);
-    }
-
-    // Update the color counter
-    colors[color] -= cluster.size();
-}
-
-// Tries to kill the cluster represented by the ClusterData object.
-// If the cell is empty or isolated, don't do anything.
-// Return true if the cluster was killed, false otherwise.
-ClusterData State::kill_cluster_blind(const Cell cell, const Color color)
-{
-    ClusterData cd { cell, color, 0 };
-
-    if (cell == CELL_NONE || color == Color::Empty) {
-        return cd;
-    }
-
-    Grid& grid = p_data->cells;
-
-    std::deque<Cell> queue { cd.rep };
-    Cell cur = CELL_NONE;
-
-    grid[cd.rep] = Color::Empty;
-    ++cd.size;
-
-    while (!queue.empty()) {
-        cur = queue.back();
-        queue.pop_back();
-        // We remove the cells adjacent to `cur` with the target color
-        // Look right
-        if (cur % WIDTH < WIDTH - 1 && grid[cur + 1] == color) {
-            queue.push_back(cur + 1);
-            grid[cur + 1] = Color::Empty;
-            ++cd.size;
-        }
-        // Look down
-        if (cur < (HEIGHT - 1) * WIDTH && grid[cur + WIDTH] == color) {
-            queue.push_back(cur + WIDTH);
-            grid[cur + WIDTH] = Color::Empty;
-            ++cd.size;
-        }
-        // Look left
-        if (cur % WIDTH > 0 && grid[cur - 1] == color) {
-            queue.push_back(cur - 1);
-            grid[cur - 1] = Color::Empty;
-            ++cd.size;
-        }
-        // Look up
-        if (cur > WIDTH - 1 && grid[cur - WIDTH] == color) {
-            queue.push_back(cur - WIDTH);
-            grid[cur - WIDTH] = Color::Empty;
-            ++cd.size;
-        }
-    }
-    // If only the rep was killed (cluster of size 1), restore it
-    if (cd.size == 1) {
-        grid[cd.rep] = color;
-    }
-
-    return cd;
-}
-
-bool State::kill_cluster_blind(const ClusterData& cd)
-{
-    ClusterData res = kill_cluster_blind(cd.rep, cd.color);
-
-    bool is_nontrivial = cd.rep != CELL_NONE && cd.color != Color::Empty && cd.size > 1;
-
-    return is_nontrivial;
-}
-
-/**
- * Apply an action to a state in a persistent way: the new data is
- * recorded on the provided StateData object.
- */
-bool State::apply_action(const ClusterData& cd, StateData& sd)
-{
-    sd.previous = p_data; // Provide info of current state.
-    sd.cells = cells(); // Copy the current grid on the provided StateData object
-    p_data = &sd;
-
-    bool action_nontrivial = kill_cluster_blind(cd);
-
-    // Clean up grid if successfull
-    if (action_nontrivial)
-    {
-        pull_cells_down();
-        pull_cells_left();
-    }
-    // Restore the state's data if not
-    else
-    {
-        p_data = p_data->previous;
-    }
-
-    return action_nontrivial;
-}
-
-/**
- * Apply an action to a state in a mutable way: the state's data
- * is overwritten.
- */
-ClusterData State::apply_action_blind(const Cell _cell)
-{
-    auto cd = kill_cluster_blind(_cell, get_color(_cell));
-
-    if (cd.size > 1) {
-        pull_cells_down();
-        pull_cells_left();
-    }
-
-    return cd;
-}
-
-/**
- * Apply an action to a state in a mutable way: the state's data
- * is overwritten.
- */
-bool State::apply_action_blind(const ClusterData& _cd)
-{
-    bool res = kill_cluster_blind(_cd);
-
-    if (res) {
-        pull_cells_down();
-        pull_cells_left();
-    }
-
-    return res;
-}
-
-ClusterData State::apply_random_action()
-{
-    ClusterData cd = kill_random_valid_cluster();
-    if (cd.color == Color::Empty) {
-        return CLUSTERD_NONE;
-    }
-    if (cd.size > 1) {
-        pull_cells_down();
-        pull_cells_left();
-    }
-    return cd;
-}
 
 void State::undo_action(const ClusterData& cd)
 {
@@ -677,9 +522,7 @@ Cluster State::get_cluster_blind(const Cell cell) const
 
     auto cl_ret = Cluster(cell, std::move(ret));
     return cl_ret;
-
 }
-
 
 ///////////////////////////////////////////////////////////////////////////////
 // TODO: I can scrap most of that... with the Zobrish scheme being to just
@@ -699,8 +542,7 @@ bool has_nontrivial_cluster(const State& state)
 
     auto row = HEIGHT - 1;
     // Iterate from bottom row upwards so we can stop at the first empty row.
-    while (row > n_empty_rows)
-    {
+    while (row > n_empty_rows) {
         // All the row except last cell
         for (auto cell = row * WIDTH; cell < (row + 1) * WIDTH - 1; ++cell) {
             if (grid[cell] == Color::Empty) {
@@ -774,12 +616,10 @@ Key compute_key(const State& state)
     Key key = 0;
     bool row_empty = false, terminal_status_known = false;
 
-    for (auto row = HEIGHT - 1; row > n_empty_rows-1; --row)
-    {
+    for (auto row = HEIGHT - 1; row > n_empty_rows - 1; --row) {
         row_empty = true;
 
-        for (auto cell = row * WIDTH; cell < (row + 1) * WIDTH; ++cell)
-        {
+        for (auto cell = row * WIDTH; cell < (row + 1) * WIDTH; ++cell) {
             if (const Color color = grid[cell]; color != Color::Empty) {
                 row_empty = false;
 
@@ -847,7 +687,7 @@ Key compute_key(const State& state)
 
 bool key_uninitialized(const Grid& grid, Key key)
 {
-        return key == 0 && grid[CELL_BOTTOM_LEFT] != Color::Empty;
+    return key == 0 && grid[CELL_BOTTOM_LEFT] != Color::Empty;
 }
 
 Key State::key() const
@@ -914,16 +754,102 @@ bool State::is_terminal() const
 //     return ret;
 // }
 
-ClusterData State::kill_random_valid_cluster()
+//****************************** Implementation of apply_action ******************************/
+
+/**
+ * Function to kill a cluster in case the whole cluster is
+ * known.
+ */
+void kill_cluster(State& state, const Cluster& cluster)
+{
+    const Color color = state.get_color(cluster.rep);
+
+    // Kill the cells
+    for (const auto cell : cluster.members) {
+        state.set_color(cell, Color::Empty);
+    }
+
+    // Update the color counter
+    state.colors[color] -= cluster.size();
+}
+
+// Tries to kill the cluster represented by the ClusterData object.
+// If the cell is empty or isolated, don't do anything.
+// Return true if the cluster was killed, false otherwise.
+ClusterData kill_cluster_blind(State& state, const Cell cell, const Color color)
+{
+    ClusterData cd { cell, color, 0 };
+
+    if (cell == CELL_NONE || color == Color::Empty) {
+        return cd;
+    }
+
+    Grid& grid = state.p_data->cells;
+
+    std::deque<Cell> queue { cd.rep };
+    Cell cur = CELL_NONE;
+
+    grid[cd.rep] = Color::Empty;
+    ++cd.size;
+
+    while (!queue.empty()) {
+        cur = queue.back();
+        queue.pop_back();
+        // We remove the cells adjacent to `cur` with the target color
+        // Look right
+        if (cur % WIDTH < WIDTH - 1 && grid[cur + 1] == color) {
+            queue.push_back(cur + 1);
+            grid[cur + 1] = Color::Empty;
+            ++cd.size;
+        }
+        // Look down
+        if (cur < (HEIGHT - 1) * WIDTH && grid[cur + WIDTH] == color) {
+            queue.push_back(cur + WIDTH);
+            grid[cur + WIDTH] = Color::Empty;
+            ++cd.size;
+        }
+        // Look left
+        if (cur % WIDTH > 0 && grid[cur - 1] == color) {
+            queue.push_back(cur - 1);
+            grid[cur - 1] = Color::Empty;
+            ++cd.size;
+        }
+        // Look up
+        if (cur > WIDTH - 1 && grid[cur - WIDTH] == color) {
+            queue.push_back(cur - WIDTH);
+            grid[cur - WIDTH] = Color::Empty;
+            ++cd.size;
+        }
+    }
+    // If only the rep was killed (cluster of size 1), restore it
+    if (cd.size == 1) {
+        grid[cd.rep] = color;
+    }
+
+    return cd;
+}
+
+bool kill_cluster_blind(State& state, const ClusterData& cd)
+{
+    ClusterData res = kill_cluster_blind(state, cd.rep, cd.color);
+
+    assert(cd.color == res.color && cd.size == res.size);
+
+    bool is_nontrivial = cd.rep != CELL_NONE && cd.color != Color::Empty && cd.size > 1;
+
+    return is_nontrivial;
+}
+
+ClusterData kill_random_valid_cluster(State& state)
 {
     using CellnColor = std::pair<Cell, Color>;
     ClusterData ret {};
 
     // Reference to our grid.
-    const auto& grid = p_data->cells;
+    const auto& grid = state.p_data->cells;
 
     // Random ordering for non-empty rows
-    auto rows = Random::ordering(p_data->n_empty_rows, 15);
+    auto rows = Random::ordering(state.p_data->n_empty_rows, 15);
 
     // Vector to store the non-empty cells and their color per row
     std::vector<CellnColor> non_empties {};
@@ -950,8 +876,8 @@ ClusterData State::kill_random_valid_cluster()
         }
 
         //Adjust the number of empty rows if one was just discovered
-        if (non_empties.empty() && row > p_data->n_empty_rows) {
-            p_data->n_empty_rows = row;
+        if (non_empties.empty() && row > state.p_data->n_empty_rows) {
+            state.p_data->n_empty_rows = row;
             continue;
         }
 
@@ -964,7 +890,7 @@ ClusterData State::kill_random_valid_cluster()
              it != end(ordering);
              ++it) {
             const auto [_cell, _color] = non_empties[*it];
-            ret = kill_cluster_blind(_cell, _color);
+            ret = kill_cluster_blind(state, _cell, _color);
             if (ret.size > 1) {
                 return ret;
             }
@@ -975,6 +901,78 @@ ClusterData State::kill_random_valid_cluster()
     }
 
     return ret;
+}
+
+//*************************************** Apply action **************************************/
+
+/**
+ * Apply an action to a state in a persistent way: the new data is
+ * recorded on the provided StateData object.
+ */
+bool State::apply_action(const ClusterData& cd, StateData& sd)
+{
+    sd.previous = p_data; // Provide info of current state.
+    sd.cells = cells(); // Copy the current grid on the provided StateData object
+    p_data = &sd;
+
+    bool action_nontrivial = kill_cluster_blind(*this, cd);
+
+    // Clean up grid if successfull
+    if (action_nontrivial) {
+        pull_cells_down(p_data->cells);
+        pull_cells_left(p_data->cells);
+    }
+    // Restore the state's data if not
+    else {
+        p_data = p_data->previous;
+    }
+
+    return action_nontrivial;
+}
+
+/**
+ * Apply an action to a state in a mutable way: the state's data
+ * is overwritten.
+ */
+ClusterData State::apply_action_blind(const Cell _cell)
+{
+    auto cd = kill_cluster_blind(*this, _cell, get_color(_cell));
+
+    if (cd.size > 1) {
+        pull_cells_down(p_data->cells);
+        pull_cells_left(p_data->cells);
+    }
+
+    return cd;
+}
+
+/**
+ * Apply an action to a state in a mutable way: the state's data
+ * is overwritten.
+ */
+bool State::apply_action_blind(const ClusterData& _cd)
+{
+    bool res = kill_cluster_blind(*this, _cd);
+
+    if (res) {
+        pull_cells_down(p_data->cells);
+        pull_cells_left(p_data->cells);
+    }
+
+    return res;
+}
+
+ClusterData State::apply_random_action()
+{
+    ClusterData cd = kill_random_valid_cluster(*this);
+    if (cd.color == Color::Empty) {
+        return CLUSTERD_NONE;
+    }
+    if (cd.size > 1) {
+        pull_cells_down(p_data->cells);
+        pull_cells_left(p_data->cells);
+    }
+    return cd;
 }
 
 // TODO: Make this more efficient by not reinializing the random engine every time...
@@ -1147,12 +1145,11 @@ ClusterData State::kill_random_valid_cluster()
 //     }
 //
 //     colors[color] -= cnt;
-//     pull_cells_down();
-//     pull_cells_left();
+//     pull_cells_down(p_data->cells);
+//     pull_cells_left(p_data->cells);
 //     generate_clusters();
 //     p_data->key = generate_key();
 // }
-
 
 //******************************************* Small methods ************************************/
 
@@ -1161,27 +1158,25 @@ bool State::is_empty() const
     return p_data->cells[((HEIGHT - 1) * WIDTH)] == Color::Empty;
 }
 
-
 //*************************** DEBUG *************************/
-
-
 
 using namespace std;
 
-template < >
+template <>
 sg::State_Action<Cluster>::State_Action(const State& _state, const Cluster& _cluster)
     : r_state(_state)
     , m_cluster(_cluster)
-  {}
+{
+}
 
-template < >
+template <>
 sg::State_Action<Cluster>::State_Action(const State& _state, const Cell _cell)
     : r_state(_state)
     , m_cluster(CLUSTER_NONE)
-  {
-      if (_cell != CELL_NONE)
-          m_cluster = _state.get_cluster_blind(_cell);
-  }
+{
+    if (_cell != CELL_NONE)
+        m_cluster = _state.get_cluster_blind(_cell);
+}
 
 namespace display {
 
@@ -1234,7 +1229,7 @@ namespace display {
 
         if (output_mode == Output::CONSOLE) {
             Shape shape = ndx == cluster.rep ? Shape::B_DIAMOND : ndx_in_cluster ? Shape::DIAMOND
-                                                                         : Shape::SQUARE;
+                                                                                 : Shape::SQUARE;
 
             ss << "\033[1;" << color_unicode(grid[ndx]) << "m" << shape_unicode(shape) << "\033[0m";
 
@@ -1305,10 +1300,10 @@ string to_string(const State_Action<Cluster>& sa, sg::Output output_mode)
 //     return _out << " }";
 // }
 
-template < typename _Cluster >
+template <typename _Cluster>
 ostream& operator<<(ostream& _out, const State_Action<_Cluster>& sa);
 
-template < >
+template <>
 ostream& operator<<(ostream& _out, const State_Action<Cluster>& state_action)
 {
     return _out << to_string(state_action, Output::CONSOLE);
@@ -1328,7 +1323,6 @@ ostream& operator<<(ostream& _out, const State& state)
 
 //****************************** PRINTING BOARDS ************************/
 
-
 void State::enumerate_clusters(ostream& _out) const
 {
     generate_clusters(*this);
@@ -1347,7 +1341,7 @@ void State::view_clusters(ostream& _out) const
     for (auto it = details::dsu.cbegin();
          it != details::dsu.cend();
          ++it) {
-        if (it->size() > 1 && it->rep == details::dsu.find_rep(it->rep) && get_color(it->rep) != Color::Empty) {//size() > 1) {
+        if (it->size() > 1 && it->rep == details::dsu.find_rep(it->rep) && get_color(it->rep) != Color::Empty) { //size() > 1) {
             auto sa = State_Action<Cluster>(*this, *it);
             spdlog::info("\n{}\n", sa);
             this_thread::sleep_for(500.0ms);
@@ -1355,14 +1349,15 @@ void State::view_clusters(ostream& _out) const
     }
 }
 
-bool operator==(const StateData& a, const StateData& b) {
+bool operator==(const StateData& a, const StateData& b)
+{
     if (a.ply != b.ply) {
         return false;
     }
     if (a.key != 0 && b.key != 0) {
         return a.key == b.key;
     }
-    for (int i=0; i<MAX_CELLS; ++i) {
+    for (int i = 0; i < MAX_CELLS; ++i) {
         if (a.cells[i] != b.cells[i]) {
             return false;
         }

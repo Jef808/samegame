@@ -10,8 +10,8 @@
 #include <iostream>
 #include <map>
 #include <random>
-#include <spdlog/fmt/ostr.h>
 #include <spdlog/spdlog.h>
+#include <spdlog/fmt/ostr.h>
 #include <sstream>
 #include <string>
 #include <thread>
@@ -22,7 +22,7 @@
 namespace sg {
 
 using Cluster = State::Cluster;
-using DSU = details::DSU<Cluster, MAX_CELLS>;
+using DSU = DSU<Cluster, MAX_CELLS>;
 
 // ************************  Constants for sentinel values ********************* //
 
@@ -1288,7 +1288,9 @@ string to_string(const State_Action<Cluster>& sa, sg::Output output_mode)
 }
 
 // template < >
-// ostream& operator<<(ostream& _out, const Cluster& cluster)
+// ostream& operator<<(ostream& _out, const ClusterT<int, CELL_NONE>& cluster) {
+//     return _out << cluster;
+// }
 // {
 //     _out << "Rep= " << cluster.rep << " { ";
 //     for (auto it = cluster.members.cbegin();
@@ -1367,27 +1369,53 @@ bool operator==(const StateData& a, const StateData& b)
     return true;
 }
 
-/**
- * When comparing clusters, only look at the (unordered) members,
- * the representatives don't matter as long as the members are the same.
- */
-template < typename _Index_T >
-bool operator==(const ClusterT<_Index_T>& a, const ClusterT<_Index_T>& b) {
-    if (a.size() != b.size()) {
-        return false;
-    }
+// /**
+//  * When comparing clusters, only look at the (unordered) members,
+//  * the representatives don't matter as long as the members are the same.
+//  */
+// template < typename _Index_T, _Index_T N >
+// bool operator==(const ClusterT<_Index_T, N>& a, const ClusterT<_Index_T, N>& b) {
+//     if (a.size() != b.size()) {
+//         return false;
+//     }
 
-    // Sort to make the two containers comparable
-    std::sort(a.members.begin(), a.members.end());
-    std::sort(b.members.begin(), b.members.end());
+//     // Create copies so we can sort them
+//     auto a_members = a.members;
+//     auto b_members = b.members;
 
-    for (auto i = 0; i < a.members.size(); ++i) {
-        if (a.members[i] != b.members[i]) {
-            return false;
-        }
-    }
-    return true;
-}
+//     // Sort to make the two containers comparable
+//     std::sort(a_members.begin(), a_members.end());
+//     std::sort(b_members.begin(), b_members.end());
+
+//     for (auto i = 0; i < a.members.size(); ++i) {
+//         if (a_members[i] != b_members[i]) {
+//             return false;
+//         }
+//     }
+//     return true;
+// }
+
+// template < >
+// bool operator==(const ClusterT<int, MAX_CELLS>& a, const ClusterT<int, MAX_CELLS>& b) {
+//     if (a.size() != b.size()) {
+//         return false;
+//     }
+
+//     // Create copies so we can sort them
+//     auto a_members = a.members;
+//     auto b_members = b.members;
+
+//     // Sort to make the two containers comparable
+//     std::sort(a_members.begin(), a_members.end());
+//     std::sort(b_members.begin(), b_members.end());
+
+//     for (auto i = 0; i < a.members.size(); ++i) {
+//         if (a_members[i] != b_members[i]) {
+//             return false;
+//         }
+//     }
+//     return true;
+// }
 
 bool operator==(const ClusterData& a, const ClusterData& b)
 {

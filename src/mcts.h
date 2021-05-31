@@ -13,13 +13,14 @@
  namespace mcts {
 
 
-const int MAX_PLY         = 128;
-const int MAX_CHILDREN    = 128;
-const int MAX_ITER        = 1500;
-const int MAX_TIME        = 10000;   // In milliseconds.
-//const int MAX_NODES       = 10000;
+const int MAX_PLY            = 128;
+const int MAX_CHILDREN       = 128;
+const int MAX_ITER           = 1500;
+const int MAX_TIME           = 10000;   // In milliseconds.
+//const int MAX_NODES        = 10000;
 const double EXPLORATION_CST = 0.04;
 const bool use_time          = false;
+const bool use_logging       = true;
 
 struct Edge;
 struct Node;
@@ -40,6 +41,7 @@ public:
   using ClusterData = sg::ClusterData;
 
   Agent(State& state);
+  void init_search();
 
   ClusterData MCTSBestAction();
   void step();
@@ -97,21 +99,6 @@ public:
   bool debug_tree_policy  = false;
   double get_exploration_cst() const;
 
-  //StateData root_sd;
-
-  // Counters for bookkeeping
-  int cnt_iterations  = 0;
-  int cnt_simulations = 0;
-  int cnt_descent     = 0;
-  int cnt_explored_nodes = 0;
-  int cnt_rollout = 0;
-  int cnt_new_nodes = 0;
-  // Tree statistics
-  double value_global_max = std::numeric_limits<double>::min();
-  double value_global_min = std::numeric_limits<double>::max();
-  double value_global_avg = 0;
-  int    global_max_depth = 1;
-
   // Data
   State& state;
   Node* root;
@@ -120,6 +107,19 @@ public:
   std::array<Edge*, MAX_PLY>         actions;     // Elements are stored in their parent node
   std::array<StateData, MAX_PLY>     states;      // To keep history of states along a branch (stored on the heap)
   std::array<SearchData, MAX_PLY>    stack;       // To perform the playout samplings without creating new nodes
+    // Counters for bookkeeping
+  int cnt_iterations      ;
+  int cnt_simulations     ;
+  int cnt_descent         ;
+  int cnt_explored_nodes  ;
+  int cnt_rollout         ;
+  int cnt_new_nodes       ;
+  // Tree statistics
+  double value_global_max;
+  double value_global_min;
+  double value_global_avg;
+  int    global_max_depth;
+
 private:
   int    ply             = 1;
   double exploration_cst = EXPLORATION_CST;

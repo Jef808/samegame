@@ -1,6 +1,4 @@
 // mcts.cpp
-#include "mcts.h"
-#include "dsu.h"
 #include <algorithm>
 #include <cassert>
 #include <chrono>
@@ -10,8 +8,12 @@
 #include <random>
 #include <spdlog/fmt/ostr.h>
 #include <spdlog/spdlog.h>
+#include <spdlog/sinks/rotating_file_sink.h>
 #include <spdlog/stopwatch.h>
 #include <sstream>
+#include "mcts.h"
+#include "samegame.h"
+//#include "dsu.h"
 //#include "debug.h"
 
 using namespace sg;
@@ -19,7 +21,7 @@ using namespace sg;
 namespace mcts {
 
 const Action ACTION_NONE = CELL_NONE;
-Edge   EDGE_NONE = { ClusterData(sg::CELL_NONE, sg::Color::Empty, 0), 0, 0, 0, 0 };
+Edge   EDGE_NONE = { ClusterData{sg::CELL_NONE, sg::Color::Empty, 0}, 0, 0, 0, 0 };
 
 std::ostream& operator<<(std::ostream& _out, const mcts::Agent& agent)
 {
@@ -137,16 +139,45 @@ bool Agent::computation_resources()
 
 //******************************** Ctor(s) *******************************/
 
+void init_logger()
+{
+    auto mcts_logger = spdlog::rotating_logger_mt("mcts_logger", "logs/mcts.txt", 1048576 * 5, 3);
+
+    if (!use_logging) {
+        mcts_logger->set_level(spdlog::level::off);
+    }
+
+    mcts_logger->set_level(spdlog::level::trace);
+}
+
 // TODO: The problem right now is with the actions stack not getting initialized
 Agent::Agent(State& state)
     : state(state)
-    , root(nullptr)
-    , ply(1)//, root_sd()
-    , cnt_iterations(0)
 {
-    reset();
+    init_logger();
+}
+
+void Agent::init_search()
+{
+    auto logger = spdlog::get("mcts_logger");
+    logger->trace("Initializing search");
+
+    ply                 = 1;
+    cnt_iterations      = 0;
+    cnt_simulations     = 0;
+    cnt_descent         = 0;
+    cnt_explored_nodes  = 0;
+    cnt_rollout         = 0;
+    cnt_new_nodes       = 0;
+    value_global_max    = std::numeric_limits<double>::min();
+    value_global_min    = std::numeric_limits<double>::max();
+    value_global_avg    = 0;
+    global_max_depth    = 0;
+
+    // Backup the state descriptor in case it is stored higher up on the states stack
     states[0] = *state.p_data;
     state.p_data = &(states[0]);
+
     root = nodes[1] = get_node(state);
 
     actions[0] = &EDGE_NONE;
@@ -233,10 +264,12 @@ void Agent::set_root()
 
 ClusterData Agent::MCTSBestAction()
 {
-    //set_root();
+    auto logger = spdlog::get("mcts_logger");
+
+    init_search();
 
     if (is_terminal(root)) {
-        spdlog::debug("root is terminal??");
+        logger->trace("root is terminal??");
         return { CELL_NONE, Color::Empty, 0 };
     }
 
@@ -246,26 +279,33 @@ ClusterData Agent::MCTSBestAction()
 
     auto* choice = best_visits(root);
 
+    logger->trace("Best action found: {}", *choice);
+
     return choice->cd;
 }
 
 void Agent::step()
 {
-    auto logger = spdlog::get("m_logger");
+    auto logger = spdlog::get("mcts_logger");
+
+    logger->trace("Step {}", cnt_iterations);
 
     // TODO: During tree_policy, when computing a state's key, keep the data
     // of the state's clusters until we know that it's node isn't the one returned.
-    logger->debug("before tree_policy");
     Node* node = tree_policy();
 
+    logger->trace("Chosen node: {}", *node);
     // TODO: Use the result of the above TODO to initialize the edges and start the
     // random simulations.
-    logger->debug("before rollout_policy");
     Reward reward = rollout_policy(node);
 
-    logger->debug("before backpropagate");
+    logger->trace("Rollout reward: {}", reward);
+
     backpropagate(node, reward);
 
+    if (ply != 1) {
+        logger->warn("ply is {} after backpropagate!", ply);
+    }
     // TODO: Maybe I need a cleaning step here to make sure the root = node[1] corresponds
     // to the current state and nothing has been lost?
     assert(ply == 1);
@@ -282,6 +322,8 @@ void Agent::step()
 // Navigate to an unexplored node, selecting the path carefully to maximize rewards and minimize regret.
 Node* Agent::tree_policy()
 {
+    auto logger = spdlog::get("mcts_logger");
+
     assert(ply == 1);
     assert(current_node() == nodes[ply]);
     assert(is_root(current_node()));
@@ -297,7 +339,7 @@ Node* Agent::tree_policy()
 
         // NOTE: Must be a better way to phrase this if statement...
         if (actions[ply]->cd.size < 2) {
-            spdlog::error("best_ucb returned invalid action {} on non-terminal state \n{}\n", actions[ply]->cd.rep, state);
+            logger->error("best_ucb returned invalid action {} on non-terminal state \n{}\n", actions[ply]->cd.rep, state);
         }
 
         ///////////////////
@@ -311,6 +353,8 @@ Node* Agent::tree_policy()
         apply_action(actions[ply]->cd); // TODO: Replace by a LookupTable query (we've seen the state/action pairs during tree_policy)
 
         nodes[ply] = get_node(state);
+
+        logger->trace("Applied action {}, now at node {}", *actions[ply-1], *nodes[ply]);
     }
 
     // NOTE: nodes[ply] is now 1) new, 2) terminal, 3) too deep
@@ -370,15 +414,15 @@ Reward Agent::rollout_policy(Node* node)
 // simulated playthrough.
 void Agent::init_children()
 {
-  //  spdlog::debug("Before valid_actions");
+    auto logger = spdlog::get("mcts_logger");
 
     auto valid_actions = state.valid_actions_data();
 
-    spdlog::debug("after valid_actions: ");
+    logger->trace("Init_children for node {}\nValid actions:\n    ", *current_node());
 
-    // for (auto act : valid_actions) {
-    //     spdlog::debug("{}", act);
-    // }
+    for (auto act : valid_actions) {
+         logger->trace("{}", act);
+    }
 
     // assert(state.key() == current_node()->key);
     // assert(!is_terminal(current_node()));
@@ -405,7 +449,7 @@ void Agent::init_children()
         new_action.val_best = simulation_reward;
         new_action.reward_avg_visit = 0;
 
-        spdlog::debug("Pushing back {}", new_action);
+        logger->trace("Pushing back action {}", new_action);
         children_edges.push_back(new_action);
     }
 

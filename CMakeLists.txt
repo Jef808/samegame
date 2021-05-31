@@ -24,10 +24,15 @@ FetchContent_Declare(
 FetchContent_Declare(
   spdlog
   GIT_REPOSITORY https://github.com/gabime/spdlog.git
-  GIT_TAG        v1.8.5
+  GIT_TAG        v1.x
   )
 FetchContent_MakeAvailable( googletest )
-FetchContent_MakeAvailable( spdlog )
+#FetchContent_MakeAvailable( spdlog )
+FetchContent_GetProperties( spdlog )
+if ( NOT spdlog_POPULATED )
+  FetchContent_Populate( spdlog )
+  add_subdirectory( ${spdlog_SOURCE_DIR} ${spdlog_BINARY_DIR} )
+endif()
 
 # Project directories
 set(DATA_DIR ${PROJECT_SOURCE_DIR}/data)
@@ -44,13 +49,10 @@ set(BUILD_DIR ${PROJECT_SOURCE_DIR}/build)
 
 set( samegame_src
    ${SRC_DIR}/samegame.cpp
-   #${SRC_DIR}/samegame.h
-   #${SRC_DIR}/types.h
    )
 
  set( mcts_src
    ${SRC_DIR}/mcts.cpp
-   #${SRC_DIR}/mcts.h
    )
 
 file( GLOB SRC_TESTS_SOURCES
@@ -61,14 +63,12 @@ set( SOURCES ${samegame_src} ${mcts_src} )
 
 # The main program
 add_library( sg_mcts STATIC ${SOURCES} )
-target_link_libraries( sg_mcts PRIVATE spdlog::spdlog )
+target_link_libraries( sg_mcts spdlog::spdlog )
 target_include_directories( sg_mcts PUBLIC ${SRC_DIR} )
 
-#target_link_directories( sg_mcts PUBLIC ${SRC_DIR} )
-
 # target for the source tests using GTest
-add_executable( test_sources ${SRC_TESTS_SOURCES} ${SOURCES} )
-target_link_libraries( test_sources PRIVATE gtest_main )
+add_executable( test_sources ${SRC_TESTS_SOURCES} )
+target_link_libraries( test_sources sg_mcts gtest_main spdlog::spdlog )
 target_include_directories( test_sources PUBLIC ${SRC_DIR} )
 
 # list(FILTER SOURCES EXCLUDE REGEX ".*main.cpp")
@@ -99,12 +99,12 @@ target_include_directories( test_sources PUBLIC ${SRC_DIR} )
 
 # Test/vizualize the clusters
 add_executable(display_clusters tests/display_clusters.cpp)
-target_link_libraries(display_clusters PRIVATE sg_mcts spdlog::spdlog)
+target_link_libraries(display_clusters sg_mcts spdlog::spdlog)
 target_include_directories(display_clusters PUBLIC ${SRC_DIR} ${DATA_DIR})
 
 # To play without an agent
 add_executable(test_human_play tests/test_humanplay.cpp)
-target_link_libraries(test_human_play PRIVATE sg_mcts spdlog::spdlog)
+target_link_libraries(test_human_play sg_mcts spdlog::spdlog)
 target_include_directories(test_human_play PUBLIC ${SRC_DIR} ${DATA_DIR})
 
 # Basic tree generation

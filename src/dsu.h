@@ -4,6 +4,7 @@
 #include <array>
 #include <cassert>
 #include <iosfwd>
+#include <iostream>
 #include <memory>
 #include <spdlog/fmt/ostr.h> // For fmt to recognize the operator<< of ClusterT
 #include <sstream>
@@ -11,7 +12,13 @@
 #include <utility>
 #include <vector>
 
-namespace sg {
+// Forward declare a template struct
+template < typename Index, Index DefaultValue >
+struct ClusterT;
+
+// Forward declare a template function so it is recognized inside of ClusterT
+template < typename _Index, _Index _DefaultValue >
+std::ostream& operator<<(std::ostream&, const ClusterT<_Index, _DefaultValue>&);
 
 /**
  * A Cluster (of indices) has a `representative` index along with a container
@@ -41,6 +48,15 @@ struct ClusterT {
     {
     }
 
+    explicit ClusterT(Container&& _cont)
+        : rep()
+        , members(_cont)
+    {
+        if (!_cont.empty()) {
+            rep = _cont.back();
+        }
+    }
+
     ClusterT(Index _ndx, Container&& _cont)
         : rep(_ndx)
         , members(_cont)
@@ -56,13 +72,42 @@ struct ClusterT {
     typename Container::const_iterator cbegin() const { return std::cbegin(members); }
     typename Container::const_iterator cend() const { return std::cend(members); }
 
-    template <typename _Index, _Index _DefaultValue>
-    friend std::ostream& operator<<(std::ostream& _out, const ClusterT<Index, _DefaultValue>&);
+    // Here we are declaring that template specializations of the above template operator<<
+    // with parameters matching those of a ClusterT will be treated as a 'friend function'
+    // of the matching ClusterT
+    friend std::ostream& operator<< <> (std::ostream& _out, const ClusterT<Index, DefaultValue>&);
+
+    // Here we are telling the compiler to create a template specialization
+    // of the above declared template operator== using the ClusterT's template parameters
+    // in order to compare two ClusterT
+    bool operator== (const ClusterT<Index, DefaultValue>& other) const {
+        if (size() != other.size()) {
+            return false;
+        }
+
+        // Create copies so we can sort them (both 'this' and 'other' arguments are const)
+        auto this_members = members;
+        auto other_members = other.members;
+
+        // Sort the members so that comparison doesn't depend on the ordering
+        std::sort(this_members.begin(), this_members.end());
+        std::sort(other_members.begin(), other_members.end());
+
+        for (auto it = this_members.begin(); it != this_members.end(); ++it) {
+            if (*it != other_members[std::distance(this_members.begin(), it)]) {
+                return false;
+            }
+        }
+        // for (auto i = 0; i < a_members.size(); ++i) {
+        //     if (this_members[i] != other_members[i]) {
+        //         return false;
+        //     }
+        // }
+        return true;
+    }
 };
 
-namespace details {
-
-    /**
+ /**
  * The `Disjoint Set Union` data structure represents a partition of indices into clusters
  * using an array. To find the cluster to which some element e_{i} belongs,
  * follow e_{i+1} = array[i]. When finally e_{i+1} == i then i is the representative and the
@@ -79,7 +124,7 @@ namespace details {
         DSU()
             : m_clusters { Cluster() }
         {
-            //reset();
+            reset();
         }
 
         void reset()
@@ -109,7 +154,7 @@ namespace details {
             return ndx;
         }
 
-        /**
+     /**
      * Append a cluster at the end of another one.
      *
      * NOTE: It is important to always merge the smaller cluster INTO the bigger cluster
@@ -161,69 +206,29 @@ namespace details {
         ClusterList m_clusters;
     };
 
-} // namespace details
 
-// template < typename _Index >
-// inline std::string to_string(const typename ClusterT<_Index>::Container& cl_members) {
-//     std::stringstream ss;
-
-//     ss << "{ ";
-//     for (auto it = cl_members.cbegin();
-//          it != cl_members.cend();
-//          ++it)
-//     {
-//         ss << *it << ' ';
-//     }
-//     ss << " }";
-
-//     return ss.str();
-// }
-
-// template < typename _Index >
-// inline std::ostream& operator<<(std::ostream& _out, const typename ClusterT<_Index>::Container& cl_members) {
-//      return _out << to_string(cl_members);
-//}
-
+// We define the template function which was forward declared at the beginnning.
+// When writing _out << cluster on an instantiated ClusterT<typename T, T t> for some
+// T, the compiler will find this function and know it can access cluster's private members,
+// as long as "dsu.h" is included.
 template <typename _Index, _Index _DefaultValue>
 inline std::ostream& operator<<(std::ostream& _out, const ClusterT<_Index, _DefaultValue>& cluster)
 {
-    _out << "Rep=" << cluster.rep << " { ";
-    for (auto it = cluster.members.cbegin();
-         it != cluster.members.cend();
-         ++it) {
-        _out << *it << ' ';
+    _out << "Rep =" << cluster.rep << " Members = {";
+    for (auto m : cluster.members) {
+        _out << m << ' ';
     }
-
-    return _out << " }";
+    return _out << "}";
 }
 
-/**
- * When comparing clusters, only look at the (unordered) members,
- * the representatives don't matter as long as the members are the same.
- */
-template <typename _Index_T, _Index_T _DefaultValue>
+// The binary template function operator== acting on instance of ClusterT<T, T t> simply calls the unary operator==
+// defined in the template struct.
+template < typename _Index_T, _Index_T _DefaultValue >
 inline bool operator==(const ClusterT<_Index_T, _DefaultValue>& a, const ClusterT<_Index_T, _DefaultValue>& b)
 {
-    if (a.size() != b.size()) {
-        return false;
-    }
-    // Sort to make the two containers comparable
-    // NOTE: Need to copy them first since they are passed
-    // by const ref
-    auto a_cpy = a;
-    auto b_cpy = b;
-
-    std::sort(a_cpy.members.begin(), a_cpy.members.end());
-    std::sort(b_cpy.members.begin(), b_cpy.members.end());
-
-    for (auto i = 0; i < a.members.size(); ++i) {
-        if (a_cpy.members[i] != b_cpy.members[i]) {
-            return false;
-        }
-    }
-    return true;
+    return ClusterT<_Index_T, _DefaultValue>::operator==(b);
 }
 
-} // namespace sg
+
 
 #endif

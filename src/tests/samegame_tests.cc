@@ -2,47 +2,37 @@
 #include "samegame.h"
 #include <algorithm>
 #include <fstream>
+#include <spdlog/spdlog.h>
 #include <gtest/gtest.h>
 
 using namespace sg;
 
 class SamegameTest : public ::testing::Test {
 protected:
-    const std::string filepath = "../../data/input.txt";
+    const std::string filepath = "../data/input.txt";
 
     SamegameTest()
         : state(sd_root)
     {
-    }
-
-    void SetUp() override
-    {
-
-        sd_root = StateData {};
-
         std::ifstream _if;
-        _if.open(filepath, std::ios::in);
-        if (!_if) {
-            FAIL(); //"Failed to open ../../data/input.txt");
+        _if.open("../data/input.txt", std::ios::in);
+        if (_if)
+        {
+            auto tmp_state = State(_if, sd_root);
         }
-
-        auto state = State(_if, sd_root);
+        else
+        {
+            spdlog::error("Failed to open .../../data/input.txt\nState is initialized with empty cells");
+        }
         _if.close();
     }
 
-    void TearDown() override
-    {
-        sd_root = {}; //{ CELL_NONE, Color::Empty, 0 };
-    }
-
-    static inline StateData sd_root {};
+    StateData sd_root {};
     State state;
-    std::ifstream _in;
 };
 
 TEST_F(SamegameTest, StateDataIsCopyAssignable)
 {
-
     StateData sd {};
     sd = *state.p_data;
 

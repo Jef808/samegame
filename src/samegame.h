@@ -8,10 +8,10 @@
 #include <iosfwd>
 #include <memory>
 
+template <typename IndexT, IndexT DefaultValue> struct ClusterT;
+
 namespace sg {
 
-template <typename IndexT, IndexT Default>
-struct ClusterT;
 // template < typename IndexT, IndexT Default >
 // extern std::ostream& operator<<(std::ostream&, const ClusterT<IndexT, Default>);
 
@@ -90,19 +90,33 @@ struct State_Action {
 
 // template < typename Index, Index DefaultValue >
 // extern std::ostream& operator<<(std::ostream&, const ClusterT<Index, DefaultValue>&);
-template <Cell DefaultValue>
-inline std::ostream& operator<<(std::ostream& _out, const ClusterT<Cell, DefaultValue>& cluster)
-{
-    _out << "Rep= " << cluster.rep << " { ";
-    for (auto it = cluster.members.cbegin();
-         it != cluster.members.cend();
-         ++it) {
-        _out << *it << ' ';
-    }
-    return _out << " }";
-}
 // template < >
-// inline std::ostream& operator<<(std::ostream& _out, const ClusterT<Cell, CELL_NONE>& cluster) {
+// inline std::ostream& operator<<(std::ostream& _out, const ClusterT<int, MAX_CELLS>& cluster) {
+//     return _out << cluster;
+// }
+// template <Cell DefaultValue>
+// inline std::ostream& operator<<(std::ostream& _out, const ClusterT<Cell, DefaultValue>& cluster)
+// {
+//     _out << "Rep= " << cluster.rep << " { ";
+//     for (auto it = cluster.members.cbegin();
+//          it != cluster.members.cend();
+//          ++it) {
+//         _out << *it << ' ';
+//     }
+//     return _out << " }";
+// }
+
+// This is defined as inline in "dsu.h". This way, if we have a specified ClusterT in a source file that
+// includes both "samegame.h" and "dsu.h", if _out << ClusterT is called for some ostream _out, the compiler
+// will generate code (inline) following the instructions in "dsu.h"
+//
+// PROBLEM: There has to be an issue with the fact that it will use an inline function while this is declared
+// to have external linkage.... It seems like two uncompatible ways to solve the same problem
+template < typename Index, Index DefaultValue >
+extern std::ostream& operator<<(std::ostream&, const ClusterT<Index, DefaultValue>&);
+
+// template < >
+// std::ostream& operator<< (std::ostream& _out, const ClusterT<Cell, CELL_NONE>& cluster) {
 //   _out << "Rep= " << cluster.rep << " { ";
 //     for (auto it = cluster.members.cbegin();
 //          it != cluster.members.cend();
@@ -112,10 +126,25 @@ inline std::ostream& operator<<(std::ostream& _out, const ClusterT<Cell, Default
 //     }
 //     return _out << " }";
 // }
+template <>
+inline std::ostream& operator<< (std::ostream& _out, const ClusterT<int, CELL_NONE>& cluster) {
+    return _out << cluster;
+}
+
 extern std::ostream& operator<<(std::ostream&, const ClusterData&);
 extern std::ostream& operator<<(std::ostream&, const State&);
 extern bool operator==(const StateData& a, const StateData& b);
-inline bool operator==(const State::Cluster&, const State::Cluster&);
+// NOTE: This operator== is defined in samegame.cpp
+// NOTE: Should maybe define this inline in dsu.h
+template < typename _Index_T, _Index_T DefaultValue >
+extern bool operator==(const ClusterT<_Index_T, DefaultValue>& a, const ClusterT<_Index_T, DefaultValue>& b);
+// NOTE: The compiler doesn't recognize operator== as being defined if we don't do the following:
+// (We can't define a template function specialisation as extern)
+// Maybe declaring operator==(const sg::Cluster& a, const sg::Cluster& b) as extern here and defining in
+// the cpp file would work, but really, since Cluster<Cell, MAX_CELLS> is a type only relevant if we're
+// including "samegame.h", this makes sense
+template < >
+inline bool operator==(const ClusterT<int, MAX_CELLS>& a, const ClusterT<int, MAX_CELLS>& b) { return a == b; }
 extern bool operator==(const ClusterData&, const ClusterData&);
 
 } // namespace sg

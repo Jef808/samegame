@@ -27,6 +27,11 @@ protected:
         _if.close();
     }
 
+    void SetUp() override
+    {
+        State::init();
+    }
+
     StateData sd_root {};
     State state;
 };

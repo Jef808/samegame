@@ -24,7 +24,7 @@ std::ostream& operator<<(std::ostream&, const ClusterT<_Index, _DefaultValue>&);
  * A Cluster (of indices) has a `representative` index along with a container
  * containing all of its members.
  */
-template <typename Index_T, Index_T DefaultValue = 0>
+template <typename Index_T, Index_T DefaultValue>
 struct ClusterT {
     // Basic type aliases
     using Index = Index_T; // This is to make the Index type available to DSU
@@ -188,7 +188,7 @@ struct ClusterT {
             }
         }
 
-        /**
+     /**
      * Return a copy of the cluster containing index ndx.
      */
         Cluster get_cluster(Index ndx)

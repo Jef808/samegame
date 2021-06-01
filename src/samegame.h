@@ -8,31 +8,10 @@
 #include <iosfwd>
 #include <memory>
 
-template <typename IndexT, IndexT DefaultValue> struct ClusterT;
-
 namespace sg {
-
-// template < typename IndexT, IndexT Default >
-// extern std::ostream& operator<<(std::ostream&, const ClusterT<IndexT, Default>);
-
-//using DSU = DSU<Cluster, MAX_CELLS>;
-//using ClusterList = std::array<Cluster, MAX_CELLS>;
-
-// Smaller objects the minimal amount of data for our algorithms.
-struct StateData {
-    Grid cells { Color::Empty };
-    Key key { 0 };
-    int ply { 0 };
-    int n_empty_rows { 0 };
-    StateData* previous { nullptr };
-};
-struct ClusterData;
 
 class State {
 public:
-    using Cluster = ClusterT<Cell, CELL_NONE>;
-    using ClusterDataVec = std::vector<ClusterData>;
-
     static void init();
     explicit State(StateData&);
     explicit State(std::istream&, StateData&);
@@ -41,9 +20,9 @@ public:
 
     // Actions
     ClusterDataVec valid_actions_data() const;
-    bool apply_action(const ClusterData&, StateData&);
-    ClusterData apply_action_blind(const Cell);
-    bool apply_action_blind(const ClusterData&);
+    ClusterData apply_action(const ClusterData&, StateData&) const;
+    //ClusterData apply_action_blind(const Cell);
+    //bool apply_action_blind(const ClusterData&);
     ClusterData apply_random_action();
     void undo_action(const ClusterData&);
     bool is_terminal() const;
@@ -54,7 +33,7 @@ public:
     void set_color(const Cell, const Color);
     int n_empty_rows() const;
     int set_n_empty_rows(int);
-    const Grid& cells() const { return p_data->cells; }
+    //const Grid& cells() const { return p_data->cells; }
     Cluster get_cluster_blind(const Cell) const;
     void move_data(StateData* sd);
 
@@ -70,15 +49,9 @@ public:
     friend std::ostream& operator<<(std::ostream&, const State&);
 };
 
-struct ClusterData {
-    Cell rep { CELL_NONE };
-    Color color { Color::Empty };
-    size_t size { 0 };
-};
-
 // For debugging
 // TODO: Put all the 'display' stuff in its own compilation unit.
-template <typename _Cluster>
+ template <typename _Cluster>
 struct State_Action {
     const State& r_state;
     _Cluster m_cluster;

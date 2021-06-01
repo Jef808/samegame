@@ -23,26 +23,16 @@ namespace mcts {
 const Action ACTION_NONE = CELL_NONE;
 Edge   EDGE_NONE = { ClusterData{sg::CELL_NONE, sg::Color::Empty, 0}, 0, 0, 0, 0 };
 
-std::ostream& operator<<(std::ostream& _out, const mcts::Agent& agent)
-{
+std::ostream& operator<<(std::ostream& _out, const mcts::Agent& agent) {
     return _out << Agent::debug_tree_stats(agent);
 }
 
-std::ostream& operator<<(std::ostream& _out, const mcts::Edge& edge)
-{
+std::ostream& operator<<(std::ostream& _out, const mcts::Edge& edge) {
     return _out << Agent::debug_edge_stats(edge);
-    // std::stringstream ss;
-    // ss << "Rep=" << std::to_string(edge.cd.rep) << ", n=" << edge.n_visits << ", val_best=" << edge.val_best << ", val_avg=" << std::fixed << std::setprecision(2) << edge.reward_avg_visit;
-
-    // return _out << ss.str();
 }
 
-std::ostream& operator<<(std::ostream& _out, const ::mcts::Node& node)
-{
+std::ostream& operator<<(std::ostream& _out, const ::mcts::Node& node) {
     return _out << Agent::debug_node_stats(node);
-    // std::stringstream ss;
-    // ss << "key = " << std::to_string(node.key) << ", n_visits = " << node.n_visits << ", n_children = " << node.n_children;
-    // return _out << ss.str();
 }
 
 //************************** Node Lookup Table****************************/
@@ -70,24 +60,6 @@ Node* get_node(const State& state)
 
     return &(new_node_it->second);
 }
-
-// A more direct version that interprets a 0 key as an empty state.
-///////
-// NOTE: The new insert methods probably do what I'm doing without so many redundant instructions.
-///////
-// Node* get_node_or_create_it(State& state)
-// {
-//     Key state_key = state.key();
-
-//     auto node_it = MCTS.find(state_key);
-//     if (node_it != MCTS.end())
-//         return &(node_it->second);
-
-//     Node new_node { };
-//     new_node.key = state_key;
-//     auto new_node_it = MCTS.insert(std::make_pair(state_key, new_node)).first;
-//     return &(new_node_it->second);
-// }
 
 // Used for choosing actions during the random_simulations.
 namespace Random {

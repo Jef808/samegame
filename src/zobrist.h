@@ -28,7 +28,7 @@ KeyTable<HashFunctor, Key, NKeys>::KeyTable(uint _n_bits_reserved)
     Rand::Util<Key> randutil {};
     for (auto i = 0; i < NKeys; ++i) {
         Key key = randutil.get(std::numeric_limits<Key>::min(), std::numeric_limits<Key>::max());
-        return _n_bits_reserved << (key >> _n_bits_reserved);
+        m_keys[i] = _n_bits_reserved << (key >> _n_bits_reserved);
     }
 }
 

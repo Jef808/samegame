@@ -67,6 +67,7 @@ Node* get_node(const State& state)
     //new_node.parent = state.p_data->parent_action;    // We've set actions[0] to ACTION_NONE so okay
 
     auto new_node_it = MCTS.insert(std::make_pair(state_key, new_node)).first;
+
     return &(new_node_it->second);
 }
 
@@ -141,7 +142,10 @@ bool Agent::computation_resources()
 
 void init_logger()
 {
-    auto mcts_logger = spdlog::rotating_logger_mt("mcts_logger", "logs/mcts.txt", 1048576 * 5, 3);
+    auto mcts_logger = spdlog::get("mcts_logger");
+    if (mcts_logger.get() == nullptr) {
+        mcts_logger = spdlog::rotating_logger_mt("mcts_logger", "logs/mcts.txt", 1048576 * 5, 3);
+    }
 
     if (!use_logging) {
         mcts_logger->set_level(spdlog::level::off);

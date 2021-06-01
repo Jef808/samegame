@@ -25,17 +25,25 @@ auto inline constexpr to_enum(I i)
 
 namespace sg {
 
+
+// Game constants
 auto constexpr const WIDTH = 15;
 auto constexpr const HEIGHT = 15;
 auto constexpr const MAX_COLORS = 5;
 auto constexpr const MAX_CELLS = HEIGHT * WIDTH;
 
+// Basic type alias and enums
+using Cell = int;
+using Key = uint64_t;
 enum class Color {
     Empty = 0,
     Nb = MAX_COLORS + 1
 };
+using Action = Cell;
 
-using Cell = int;
+auto constexpr const N_ZOBRIST_KEYS = MAX_CELLS * MAX_COLORS;
+
+// Sentinels and syntax helpers
 auto constexpr const CELL_BOTTOM_LEFT = (HEIGHT - 1) * WIDTH;
 auto constexpr const CELL_UPPER_RIGHT = WIDTH - 1;
 auto constexpr const CELL_NONE = MAX_CELLS;
@@ -45,15 +53,6 @@ inline const std::string to_string(const Color& color)
     return std::to_string(to_integral(color));
 }
 
-// struct Cluster {
-//   Cell rep{ CELL_NONE };
-//   std::vector<Cell> members {};
-// };
-
-// struct ClusterV {
-//     Cell rep{ CELL_NONE };
-//     std::vector<Cell> members;
-// };
 
 struct Grid {
     std::array<Color, MAX_CELLS> m_grid;
@@ -105,8 +104,7 @@ struct ColorsCounter {
     auto cend() const { return std::cend(m_colors); }
 };
 
-using Key = uint64_t;
-using Action = Cell;
+
 
 using ActionVec = std::vector<Action>;
 //using ClusterDataVec = std::vector<ClusterData>;

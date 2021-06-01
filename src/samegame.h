@@ -126,10 +126,10 @@ extern std::ostream& operator<<(std::ostream&, const ClusterT<Index, DefaultValu
 //     }
 //     return _out << " }";
 // }
-template <>
-inline std::ostream& operator<< (std::ostream& _out, const ClusterT<int, CELL_NONE>& cluster) {
-    return _out << cluster;
-}
+// template <>
+// inline std::ostream& operator<< (std::ostream& _out, const ClusterT<int, CELL_NONE>& cluster) {
+//     return _out << cluster;
+// }
 
 extern std::ostream& operator<<(std::ostream&, const ClusterData&);
 extern std::ostream& operator<<(std::ostream&, const State&);

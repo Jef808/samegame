@@ -2,6 +2,8 @@
 #include "samegame.h"
 #include "dsu.h"
 #include "types.h"
+#include "rand.h"
+#include "zobrist.h"
 #include <algorithm>
 #include <array>
 #include <cassert>
@@ -30,155 +32,101 @@ const Cluster CLUSTER_NONE = Cluster(CELL_NONE);
 const ClusterData CLUSTERD_NONE = { CELL_NONE, Color::Empty, 0 };
 
 // **************************  DSU  ********************************************* //
-namespace details {
 
-    DSU dsu = sg::DSU();
+/** Data structure to separate the grid into clusters of adjacent colors */
+DSU grid_dsu {};
 
-} // namespace
-// ***************************  Randomization  ********************************** //
+void generate_clusters(const State& state)
+{
 
-namespace Random {
+    grid_dsu.reset();
 
-    namespace {
+    const Grid& grid = state.cells();
+    auto n_empty_rows = state.n_empty_rows();
+    bool row_empty = true;
 
-        static std::random_device rd;
-        static std::mt19937 gen;
-
-        void init()
-        {
-            gen = std::mt19937(rd());
-        }
-
-        struct get {
-            template <typename T>
-            T operator()(std::uniform_int_distribution<T>& _dist)
-            {
-                return _dist(gen);
+    auto row = HEIGHT - 1;
+    // Iterate from bottom row upwards so we can stop at the first empty row.
+    while (row > n_empty_rows) {
+        // All the row except last cell
+        for (auto cell = row * WIDTH; cell < (row + 1) * WIDTH - 1; ++cell) {
+            if (grid[cell] == Color::Empty) {
+                continue;
             }
-        };
-
-    } // namespace
-
-    /**
-     * Generate a random vector of integers between _beg and _end.
-     */
-    auto ordering(const int _beg, const int _end)
-    {
-        const size_t n = _end - _beg;
-        std::vector<int> ret(n);
-        std::iota(begin(ret), end(ret), _beg);
-        //std::transform(_ret.begin(), _ret.end(), ret.begin(), [](auto i){ return to_enum<Cell>(i); });
-
-        for (auto i = 0; i < n; ++i) {
-            std::uniform_int_distribution<int> dist(i, n - 1);
-            int j = get()(dist);
-            std::swap(ret[i], ret[j]);
+            row_empty = false;
+            // compare up
+            if (grid[cell] == grid[cell - WIDTH]) {
+                grid_dsu.unite(cell, cell - WIDTH);
+            }
+            // compare right
+            if (grid[cell] == grid[cell + 1]) {
+                grid_dsu.unite(cell, cell + 1);
+            }
         }
-
-        return ret;
+        // If the last cell of the row is empty
+        if (grid[(row + 1) * WIDTH - 1] == Color::Empty) {
+            if (row_empty) {
+                return;
+            }
+            continue;
+        }
+        // If it is not empty, compare up
+        if (grid[(row + 1) * WIDTH - 1] == grid[row * WIDTH - 1]) {
+            grid_dsu.unite((row + 1) * WIDTH - 1, row * WIDTH - 1);
+        }
+        --row;
+        row_empty = true;
     }
-
-    void shuffle(std::vector<Cell>& v)
-    {
-        size_t n = v.size();
-
-        for (auto i = 0; i < n; ++i) {
-            std::uniform_int_distribution<Cell> dist(i, n - 1);
-            int j = get()(dist);
-            std::swap(v[i], v[j]);
+    // The upmost non-empty row: only compare right
+    for (auto cell = 0; cell < CELL_UPPER_RIGHT - 1; ++cell) {
+        if (grid[cell] == Color::Empty) {
+            continue;
+        }
+        if (grid[cell] == grid[cell + 1]) {
+            grid_dsu.unite(cell, cell + 1);
         }
     }
+}
 
-} // namespace Random
+//***********************  Zobrist Hashing **************************************/
 
-//*************************************  Zobrist  ***********************************/
-
-namespace Zobrist {
-
-    using ClusterMembers = std::vector<Cell>;
-
-    std::array<Key, MAX_CELLS * MAX_COLORS> ndx_keys { 0 };
-
-    /**
-     * NOTE: The upper left cell in the grid corresponds to 0,
-     * so wee need to increment the cells when computing the key!
-     */
-    Key cellColorKey(const Cell cell, const Color color)
-    {
-        return ndx_keys[(cell + 1) * to_integral(color)];
+/** A functor that computes an index from the building blocks of the states (cell, color) */
+struct ZobristIndex {
+    //  NOTE: The upper left cell in the grid corresponds to 0,
+    // so wee need to increment the cells when computing the key!
+    auto operator()(const Cell cell, const Color color) {
+        return (cell + 1) * to_integral(color);
     }
+};
 
-    /**
-     * For every cell in the cluster, XOR with the key corresponding to that
-     * position in the grid.
-     */
-    // Key clusterKey(const ClusterMembers& members, const Color color)
-    // {
-    //     Key key = 0;
+zobrist::KeyTable< ZobristIndex, Key, N_ZOBRIST_KEYS > ZobristKey { 2 };
 
-    //     std::for_each(members.cbegin(), members.cend(),
-    //                   [&key, color](auto cell) mutable
-    //                   { key ^= cellColorKey(cell, color); });
 
-    //     return key;
-    // }
+//********************************** Random Utils **************************************/
 
-    // Key rarestColorKey(const State& state) {
-    //     auto rarest_color = *std::min_element(state.colors.begin() + 1, state.colors.end());
-    //     return rarest_color << 1;
-    // }
-    // Key terminalKey(const State& state) {
-    //     return state.is_terminal();
-    // }
-
-} // namespace Zobrist
-
-//************************************ Utility functions ******************************/
-
-// /**
-//  * Check if a cell has some neighbor with the same color
-//  * on its RIGHT or DOWNWARDS
-//  *
-//  * NOTE: If called with an empty cell, it will return true if a
-//  * neighbor is also empty.
-//  */
-// bool same_color_bottom_right(const Grid& grid, const Cell cell)
-// {
-//     const Color color = grid[cell];
-//     // check right
-//     if (cell % WIDTH != 0 && grid[cell + 1] == color) {
-//         return true;
-//     }
-//     // check down
-//     if (cell < CELL_BOTTOM_LEFT && grid[cell + WIDTH] == color) {
-//         return true;
-//     }
-
-//     return false;
-// }
+/** A class that generates the random data we need for providing random actions */
+Rand::Util<Cell> rand_util();
 
 //*************************************** Game logic **********************************/
 
 void State::init()
 {
-    using Zobrist::ndx_keys;
-
     // Generate the Random engines
-    Random::init();
+    //Random::init();
 
     // Generate the random keys for the Zobrist hash
-    std::uniform_int_distribution<unsigned long long> dis(
-        std::numeric_limits<std::uint64_t>::min(),
-        std::numeric_limits<std::uint64_t>::max());
+    // std::uniform_int_distribution<unsigned long long> dis(
+    //     std::numeric_limits<std::uint64_t>::min(),
+    //     std::numeric_limits<std::uint64_t>::max());
 
-    for (auto it = ndx_keys.begin(); it != ndx_keys.end(); ++it) {
+    // for (auto it = ndx_keys.begin(); it != ndx_keys.end(); ++it) {
 
-        auto prekey = Random::get()(dis);
-        // Reserve two bits. The first one indicates if is_terminal() has been checked,
-        // the second stores the result if so.
-        prekey = prekey >> 2;
-        *it = (prekey << 2);
-    }
+    //     auto prekey = Random::get()(dis);
+    //     // Reserve two bits. The first one indicates if is_terminal() has been checked,
+    //     // the second stores the result if so.
+    //     prekey = prekey >> 2;
+    //     *it = (prekey << 2);
+    // }
 }
 
 State::State(StateData& sd)
@@ -212,7 +160,7 @@ State::State(std::istream& _in, StateData& sd)
             // Generate the helper data at the same time
             if (color != Color::Empty) {
                 row_empty = false;
-                key ^= Zobrist::cellColorKey(col + row * WIDTH, color);
+                key ^= ZobristKey(col + row * WIDTH, color);
                 ++colors[color];
             }
         }
@@ -317,143 +265,23 @@ void pull_cells_left(Grid& grid)
     }
 }
 
-void generate_clusters(const State& state)
-{
-    using details::dsu;
 
-    dsu.reset();
-
-    const Grid& grid = state.cells();
-    auto n_empty_rows = state.n_empty_rows();
-    bool row_empty = true;
-
-    auto row = HEIGHT - 1;
-    // Iterate from bottom row upwards so we can stop at the first empty row.
-    while (row > n_empty_rows) {
-        // All the row except last cell
-        for (auto cell = row * WIDTH; cell < (row + 1) * WIDTH - 1; ++cell) {
-            if (grid[cell] == Color::Empty) {
-                continue;
-            }
-            row_empty = false;
-            // compare up
-            if (grid[cell] == grid[cell - WIDTH]) {
-                dsu.unite(cell, cell - WIDTH);
-            }
-            // compare right
-            if (grid[cell] == grid[cell + 1]) {
-                dsu.unite(cell, cell + 1);
-            }
-        }
-        // If the last cell of the row is empty
-        if (grid[(row + 1) * WIDTH - 1] == Color::Empty) {
-            if (row_empty) {
-                return;
-            }
-            continue;
-        }
-        // If it is not empty, compare up
-        if (grid[(row + 1) * WIDTH - 1] == grid[row * WIDTH - 1]) {
-            dsu.unite((row + 1) * WIDTH - 1, row * WIDTH - 1);
-        }
-        --row;
-        row_empty = true;
-    }
-    // The upmost non-empty row: only compare right
-    for (auto cell = 0; cell < CELL_UPPER_RIGHT - 1; ++cell) {
-        if (grid[cell] == Color::Empty) {
-            continue;
-        }
-        if (grid[cell] == grid[cell + 1]) {
-            dsu.unite(cell, cell + 1);
-        }
-    }
-}
-
-//****************************************** Valid actions ***************************************/
+//****************************************** Actions methods ***************************************/
 
 // NOTE: Can return empty vector
 State::ClusterDataVec State::valid_actions_data() const
 {
-    using details::dsu;
-
     generate_clusters(*this);
     ClusterDataVec ret {};
     ret.reserve(MAX_CELLS);
 
-    for (auto it = dsu.begin(); it != dsu.end(); ++it) {
+    for (auto it = grid_dsu.begin(); it != grid_dsu.end(); ++it) {
         if (it->size() > 1 && get_color(it->rep) != Color::Empty) {
             ret.push_back(ClusterData { it->rep, get_color(it->rep), it->size() });
         }
     }
 
     return ret;
-}
-
-// void State::generate_clusters() const //(State& state);
-// {
-//     using details::dsu;
-
-//     dsu.reset();
-
-//     const Grid& m_cells = p_data->cells;
-//     int n_empty_rows = p_data->n_empty_rows;
-//     bool row_empty = false;
-
-//     // Iterate from bottom row to the second row
-//     for (auto row = HEIGHT - 1; row > n_empty_rows; --row) {
-//         row_empty = true;
-//         // All row except last cell
-//         for (int cell = row * WIDTH; cell < (row + 1) * WIDTH - 1; ++cell) {
-//             if (m_cells[cell] == Color::Empty) {
-//                 continue;
-//             }
-//             // compare up
-//             if (m_cells[cell - WIDTH] == m_cells[cell]) {
-//                 dsu.unite(cell - WIDTH, cell);
-//                 row_empty = false;
-//             }
-//             // compare right
-//             if (m_cells[cell + 1] == m_cells[cell]) {
-//                 dsu.unite(cell + 1, cell);
-//                 row_empty = false;
-//             }
-//         }
-//         // Last cell, if empty and rest of row was empty, we're done
-//         if (m_cells[(row + 1) * WIDTH - 1] == Color::Empty) {
-//             if (row_empty) {
-//                 p_data->n_empty_rows = row + 1;
-//                 return;
-//             }
-//         }
-//         if (m_cells[(row + 1) * WIDTH - 1] == m_cells[row * WIDTH - 1]) {
-//             dsu.unite(row * WIDTH + WIDTH - 1, row * WIDTH - 1);
-//             row_empty = false;
-//         }
-//     }
-//     row_empty = true;
-
-//     for (auto cell = 0; cell < CELL_UPPER_RIGHT; ++cell) {
-//         if (m_cells[cell] == Color::Empty) {
-//             continue;
-//         }
-//         if (m_cells[cell] == m_cells[cell + 1]) {
-//             dsu.unite(cell, cell + 1);
-//             row_empty = false;
-//         }
-//     }
-
-//     // We can cast the bool to an int to record whether or not the first row is empty.
-//     p_data->n_empty_rows = int(row_empty);
-// }
-
-void State::undo_action(const ClusterData& cd)
-{
-    // Simply revert the data
-    p_data = p_data->previous;
-
-    // Use the action to reincrement the color counter
-    colors[cd.color] += cd.size;
 }
 
 /**
@@ -623,7 +451,7 @@ Key compute_key(const State& state)
             if (const Color color = grid[cell]; color != Color::Empty) {
                 row_empty = false;
 
-                key ^= Zobrist::cellColorKey(cell, color);
+                key ^= ZobristKey(cell, color);
 
                 // If the terminal status of the state is known, continue
                 if (terminal_status_known) {
@@ -665,7 +493,7 @@ Key compute_key(const State& state)
 //         const Color color = grid[i];
 
 //         if (color != Color::Empty) {
-//             key ^= Zobrist::cellColorKey(i, color);
+//             key ^= ZobristKey(i, color);
 //             // If the terminal status of the status is known, continue
 //             if (terminal_status_known) {
 //                 continue;
@@ -903,7 +731,7 @@ ClusterData kill_random_valid_cluster(State& state)
     return ret;
 }
 
-//*************************************** Apply action **************************************/
+//******************************** Apply / Undo actions **************************************/
 
 /**
  * Apply an action to a state in a persistent way: the new data is
@@ -973,6 +801,15 @@ ClusterData State::apply_random_action()
         pull_cells_left(p_data->cells);
     }
     return cd;
+}
+
+void State::undo_action(const ClusterData& cd)
+{
+    // Simply revert the data
+    p_data = p_data->previous;
+
+    // Use the action to reincrement the color counter
+    colors[cd.color] += cd.size;
 }
 
 // TODO: Make this more efficient by not reinializing the random engine every time...
@@ -1329,8 +1166,8 @@ void State::enumerate_clusters(ostream& _out) const
 {
     generate_clusters(*this);
 
-    for (auto it = details::dsu.begin();
-         it != details::dsu.end();
+    for (auto it = grid_dsu.begin();
+         it != grid_dsu.end();
          ++it) {
         spdlog::info("Rep={}, size={}", it->rep, it->size());
     }
@@ -1340,12 +1177,12 @@ void State::view_clusters(ostream& _out) const
 {
     generate_clusters(*this);
 
-    for (auto it = details::dsu.cbegin();
-         it != details::dsu.cend();
+    for (auto it = grid_dsu.cbegin();
+         it != grid_dsu.cend();
          ++it) {
         assert(it->rep < MAX_CELLS && it->rep > -1);
 
-        if (it->size() > 1 && it->rep == details::dsu.find_rep(it->rep) && get_color(it->rep) != Color::Empty) { //size() > 1) {
+        if (it->size() > 1 && it->rep == grid_dsu.find_rep(it->rep) && get_color(it->rep) != Color::Empty) { //size() > 1) {
             auto sa = State_Action<Cluster>(*this, *it);
             spdlog::info("\n{}\n", sa);
             this_thread::sleep_for(500.0ms);
@@ -1423,3 +1260,58 @@ bool operator==(const ClusterData& a, const ClusterData& b)
 }
 
 } //namespace sg
+
+
+// namespace Random {
+
+//     namespace {
+
+//         static std::random_device rd;
+//         static std::mt19937 gen;
+
+//         void init()
+//         {
+//             gen = std::mt19937(rd());
+//         }
+
+//         struct get {
+//             template <typename T>
+//             T operator()(std::uniform_int_distribution<T>& _dist)
+//             {
+//                 return _dist(gen);
+//             }
+//         };
+
+//     } // namespace
+
+//     /**
+//      * Generate a random vector of integers between _beg and _end.
+//      */
+//     auto ordering(const int _beg, const int _end)
+//     {
+//         const size_t n = _end - _beg;
+//         std::vector<int> ret(n);
+//         std::iota(begin(ret), end(ret), _beg);
+//         //std::transform(_ret.begin(), _ret.end(), ret.begin(), [](auto i){ return to_enum<Cell>(i); });
+
+//         for (auto i = 0; i < n; ++i) {
+//             std::uniform_int_distribution<int> dist(i, n - 1);
+//             int j = get()(dist);
+//             std::swap(ret[i], ret[j]);
+//         }
+
+//         return ret;
+//     }
+
+//     void shuffle(std::vector<Cell>& v)
+//     {
+//         size_t n = v.size();
+
+//         for (auto i = 0; i < n; ++i) {
+//             std::uniform_int_distribution<Cell> dist(i, n - 1);
+//             int j = get()(dist);
+//             std::swap(v[i], v[j]);
+//         }
+//     }
+
+// } // namespace Random

@@ -7,7 +7,9 @@ namespace sg::zobrist {
 
 namespace {
 
-/** A functor that computes an index from the building blocks of the states (cell, color) */
+/**
+ * A functor that computes an index from the building blocks of the states (cell, color)
+  */
 struct ZobristIndex {
     //  NOTE: The upper left cell in the grid corresponds to 0,
     // so wee need to increment the cells when computing the key!
@@ -21,11 +23,6 @@ struct ZobristIndex {
 } // namespace
 
 
-Key get_key(const Grid& _grid, const Cell& _cell)
-{
-    return KeyTable(_cell, _grid[_cell]);
-}
-
 /**
  * Xor with a unique random key for each (index, color) appearing in the grid.
  * Also compute is_terminal() (Key will have first bit on once is_terminal() is known,
@@ -34,7 +31,6 @@ Key get_key(const Grid& _grid, const Cell& _cell)
  */
 Key get_key(const Grid& _grid)
 {
-    //auto n_empty_rows = _grid.n_empty_rows;
     Key key = 0;
     bool row_empty = false, terminal_status_known = false;
 
@@ -75,7 +71,7 @@ Key get_key(const Grid& _grid)
                 continue;
             }
             // Otherwise keep checking for nontrivial clusters upwards and forward
-            if (clusters::same_as_right(_grid, cell)) {
+            if (clusters::same_as_right_nbh(_grid, cell)) {
                 // Indicate that terminal status is known
                 terminal_status_known = true;
             }

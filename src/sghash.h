@@ -5,7 +5,9 @@
 
 namespace sg::zobrist {
 
-Key get_key(const Grid&, const Cell);
+/**
+ * Generate the grid's key using a Zobrist hashing scheme.
+ */
 Key get_key(const Grid&);
 
 

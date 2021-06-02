@@ -50,6 +50,7 @@ set(BUILD_DIR ${PROJECT_SOURCE_DIR}/build)
 set( samegame_src
    ${SRC_DIR}/samegame.cpp
    ${SRC_DIR}/clusterhelper.cpp
+   ${SRC_DIR}/sghash.cpp
    )
 
  set( mcts_src

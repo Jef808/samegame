@@ -4,8 +4,6 @@
 
 #include <array>
 #include <cstdint>
-#include <list>
-#include <string>
 #include <vector>
 
 
@@ -23,7 +21,6 @@ auto inline constexpr to_enum(I i) {
 template < typename Index, Index DefaultValue >
 struct ClusterT;
 
-
 namespace sg {
 
 // Game constants
@@ -32,24 +29,19 @@ auto constexpr const HEIGHT = 15;
 auto constexpr const MAX_COLORS = 5;
 auto constexpr const MAX_CELLS = HEIGHT * WIDTH;
 
-// Basic type alias and enums
 using Cell = int;
 auto constexpr const CELL_UPPER_LEFT = 0;
 auto constexpr const CELL_BOTTOM_LEFT = (HEIGHT - 1) * WIDTH;
 auto constexpr const CELL_UPPER_RIGHT = WIDTH - 1;
 auto constexpr const CELL_NONE = MAX_CELLS;
-using Cluster = ClusterT<Cell, CELL_NONE>;
+
 enum class Color {
     Empty = 0,
     Nb = MAX_COLORS + 1
 };
-inline const std::string to_string(const Color& color) {
-    return std::to_string(to_integral(color));
-}
+
 using Key = uint64_t;
 auto constexpr const N_ZOBRIST_KEYS = MAX_CELLS * MAX_COLORS;
-using Action = Cell;
-using ActionVec = std::vector<Action>;
 
 class Grid {
 public:
@@ -89,6 +81,7 @@ private:
     std::array<int, to_integral(Color::Nb)> m_colors { 0 };
 };
 
+// State descriptor
 struct StateData {
     Grid          cells        { };
     ColorsCounter cnt_colors   { };
@@ -98,6 +91,9 @@ struct StateData {
     StateData*    previous     { nullptr };
 };
 
+using Cluster = ClusterT<Cell, CELL_NONE>;
+
+// Cluster or Action descriptor
 struct ClusterData {
     Cell   rep   { CELL_NONE };
     Color  color { Color::Empty };
@@ -109,6 +105,9 @@ enum class Output {
     CONSOLE,
     FILE
 };
+
+using Action = ClusterData;
+using ActionVec = ClusterDataVec;
 
 } // namespace sg
 

@@ -44,17 +44,16 @@ void output_pv(Agent& agent)
             break;
         }
 
-        pv[ply+1].r = pv[ply].r + agent.sg_value(edge->cd);
+        pv[ply+1].r = pv[ply].r + agent.evaluate_valid_action(edge->cd);
 
-        agent.state.generate_clusters();
+        State_Action sa {agent.state, edge->cd.rep};
 
         logger->trace("   *** Move {} rep = {} score = {}\n", ply, edge->cd.rep, pv[ply].r);
-        logger->trace("\n{}\n", sg::State_Action({agent.state, edge->cd.rep, agent.state.get_cluster(edge->cd.rep)}));
+        logger->trace("\n{}\n", sa);
 
         agent.apply_action(edge->cd);
         ++ply;
         //state.generate_clusters();    // Generated during the call to apply_action to generate the key
-        node = agent.get_node();
     }
 
     logger->trace("*********** pv over.\n\n    Final Score : {}\n\n\n", pv[ply].r);
@@ -100,7 +99,7 @@ void changing_roots(State& state)
         spdlog::info("\n{}\n", state);
         agent.apply_action(action);
         this_thread::sleep_for(500ms);
-        spdlog::info("\n{}\n", State_Action{ state, action.rep, state.get_cluster(action.rep) });
+        spdlog::info("\n{}\n", State_Action{ state, action.rep });
 
     }
 
@@ -320,7 +319,7 @@ int main()
         // while (agent.get_ply() < saved_ply)
         // {
         //     auto ad = agent.actions[agent.get_ply()];
-        //     logger->trace("\n{}\nReward = {}\n", sg::State_Action{state, ad->cd.rep, state.get_cluster(ad->cd.rep)}, ad->sg_value_from_root);
+        //     logger->trace("\n{}\nReward = {}\n", sg::State_Action{state, ad->cd.rep, state.get_cluster(ad->cd.rep)}, ad->evalute_action_from_root);
         //     agent.apply_action(agent.actions[agent.get_ply()]->cd);
         // }
 
@@ -409,7 +408,7 @@ int main()
 
     //while (!state.is_terminal())
     // {
-    //     while (Cell(action) > MAX_CELLS - 1 || state.cells()[Cell(action)] == COLOR_NONE)
+    //     while (Cell(action) > MAX_CELLS - 1 || state.cells()[Cell(action)] == Color::Empty)
     //     {
     //         stringstream ss;
     //         int x, y;

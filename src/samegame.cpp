@@ -7,6 +7,8 @@
 #include <array>
 #include <iostream>
 #include <string>
+#include <spdlog/spdlog.h>
+#include <spdlog/fmt/ostr.h>
 #include <utility>
 #include <vector>
 
@@ -21,15 +23,43 @@ State::State(StateData& sd)
 State::State(std::istream& _in, StateData& sd)
     : p_data(&sd)
 {
-    clusters::input(_in, sd.cells, sd.cnt_colors);
+    clusters::input(_in, sd);
 }
 
-void State::move_data(StateData* _sd)
+StateData State::clone_data() const
 {
-    *_sd = *p_data;
-    p_data = _sd;
+    StateData sd { *p_data };
+    return sd;
 }
 
+StateData& State::copy_data_to(StateData& _sd) const
+{
+    return _sd = *p_data;
+}
+
+StateData& State::redirect_data_to(StateData& _sd)
+{
+    _sd = *p_data;
+    p_data = &_sd;
+    return _sd;
+}
+
+StateData& State::move_data_to(StateData& _sd)
+{
+    _sd = std::move(*p_data);
+    p_data = &_sd;
+    return _sd;
+}
+
+void State::copy_data_from(const StateData& _sd)
+{
+    *p_data = _sd;
+}
+
+const StateData& State::data() const
+{
+    return *p_data;
+}
 //****************************************** Actions methods ***************************************/
 
 ClusterDataVec State::valid_actions_data() const
@@ -75,39 +105,50 @@ bool State::is_empty() const
  * Apply an action to a state in a persistent way: the new data is
  * recorded on the provided StateData object.
  */
-ClusterData State::apply_action(const ClusterData& cd, StateData& sd) const
+ClusterData State::apply_action(const ClusterData& cd, StateData& sd)
 {
-    sd.cells = p_data->cells;
+    copy_data_to(sd);
     sd.previous = p_data;
+    p_data = &sd;
 
     ClusterData cd_ret = clusters::apply_action(sd.cells, cd.rep);
-    sd.cnt_colors[cd_ret.color] -= cd_ret.size;
+    sd.cnt_colors[to_integral(cd_ret.color)] -= (cd_ret.size > 1) * cd_ret.size;
 
     return cd_ret;
+}
+
+void State::apply_action(const ClusterData& cd)
+{
+    clusters::apply_action(p_data->cells, cd.rep);
 }
 
 ClusterData State::apply_random_action()
 {
     ClusterData cd = clusters::apply_random_action(p_data->cells);
-    p_data->cnt_colors[cd.color] -= cd.size;
+    p_data->cnt_colors[to_integral(cd.color)] -= cd.size;
     return cd;
 }
 
 void State::undo_action(const ClusterData& cd)
 {
     p_data = p_data->previous;
-    p_data->cnt_colors[cd.color] += cd.size;
+    p_data->cnt_colors[to_integral(cd.color)] += cd.size;
 }
 //*************************** Display *************************/
 
-std::ostream& operator<<(std::ostream& _out, const std::pair<const Grid&, const Cell> _ga)
+std::ostream& operator<<(std::ostream& _out, const std::pair<Grid&, Cell>& _ga)
 {
     return _out << display::to_string(_ga.first, _ga.second);
 }
 
+std::ostream& operator<<(std::ostream& _out, const std::pair<const State&, Cell>& _sc)
+{
+    return _out << display::to_string(_sc.first.data().cells, _sc.second);
+}
+
 std::ostream& operator<<(std::ostream& _out, const State& state)
 {
-    return _out << display::to_string(state.p_data->cells, cell, Output::CONSOLE);
+    return _out << display::to_string(state.p_data->cells, CELL_NONE);
 }
 
 std::ostream& operator<<(std::ostream& _out, const ClusterData& _cd)

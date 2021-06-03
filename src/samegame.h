@@ -8,6 +8,7 @@
 #include <iosfwd>
 #include <memory>
 
+
 namespace sg {
 
 /**
@@ -22,10 +23,17 @@ public:
     explicit State(std::istream&, StateData&);
     State(const State&) = delete;
     State& operator=(const State&) = delete;
-    //void move_data(StateData* sd);
+
+    StateData clone_data() const;
+    StateData& copy_data_to(StateData&) const;
+    StateData& move_data_to(StateData&);
+    StateData& redirect_data_to(StateData&);
+    void copy_data_from(const StateData&);
+    const StateData& data() const;
 
     ClusterDataVec valid_actions_data() const;
-    ClusterData apply_action(const ClusterData&, StateData&) const;
+    ClusterData apply_action(const ClusterData&, StateData&);
+    void apply_action(const ClusterData&);
     ClusterData apply_random_action();
     void undo_action(const ClusterData&);
     bool is_terminal() const;
@@ -39,23 +47,17 @@ private:
 };
 
 /** Display a colored board with the chosen cluster highlighted. */
-extern std::ostream& operator<<(std::ostream&, const std::pair<Grid&, const Cell>);
+extern std::ostream& operator<<(std::ostream&, const std::pair<const State&, Cell>&);
+extern std::ostream& operator<<(std::ostream&, const std::pair<Grid&, int>&);
 extern std::ostream& operator<<(std::ostream&, const State&);
 extern std::ostream& operator<<(std::ostream&, const ClusterData&);
 
 extern bool operator==(const StateData& a, const StateData& b);
-template < typename _Index_T, _Index_T DefaultValue >
-extern bool operator==(const ClusterT<_Index_T, DefaultValue>& a, const ClusterT<_Index_T, DefaultValue>& b);
-
+template < typename _Index_T, _Index_T IndexNone >
+extern bool operator==(const ClusterT<_Index_T, IndexNone>& a, const ClusterT<_Index_T, IndexNone>& b);
 template < >
 inline bool operator==(const ClusterT<Cell, MAX_CELLS>& a, const ClusterT<Cell, MAX_CELLS>& b) { return a == b; }
 extern bool operator==(const ClusterData&, const ClusterData&);
-
-// NOTE: The compiler doesn't recognize operator== as being defined if we don't do the following:
-// (We can't define a template function specialisation as extern)
-// Maybe declaring operator==(const sg::Cluster& a, const sg::Cluster& b) as extern here and defining in
-// the cpp file would work, but really, since Cluster<Cell, MAX_CELLS> is a type only relevant if we're
-// including "samegame.h", this makes sense
 
 } // namespace sg
 

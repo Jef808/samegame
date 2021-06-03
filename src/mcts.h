@@ -6,11 +6,12 @@
 #include <sstream>
 #include <iosfwd>
 #include <limits>
-#include "samegame.h"
+//#include "samegame.h"
 #include "types.h"
 
+namespace sg { class State; }
 
- namespace mcts {
+namespace mcts {
 
 
 const int MAX_PLY            = 128;
@@ -28,29 +29,30 @@ struct Node;
 // Used to hold some information about actions independantly of the
 // mcts tree structure. Allows sampling playouts without creating nodes.
 struct SearchData {
-  int              ply { };
-  sg::ClusterData  cd  { };//{ sg::CELL_NONE, sg::Color::Empty, 0 };    // TODO Get rid of this. The SearchStack idea is for TEMPORARY stacks so we don't wan't to make copies for no reason
-  Reward           r   { };
+  ::sg::ClusterData  cd     { ::sg::CELL_NONE, ::sg::Color::Empty, 0 };    // TODO Get rid of this. The SearchStack idea is for TEMPORARY stacks so we don't wan't to make copies for no reason
+  int                ply    {                                        };
+  Reward             reward {                                        };
 };
 
 class Agent {
 
 public:
-  using State = sg::State;
-  using StateData = sg::StateData;
-  using ClusterData = sg::ClusterData;
+  //using State = sg::State;
+  using StateData = ::sg::StateData;
+  using ClusterData = ::sg::ClusterData;
 
-  Agent(State& state);
+  Agent(::sg::State&);
   void init_search();
 
-  ClusterData MCTSBestAction();
+  ClusterData MCTSBestActions();
   void step();
   void set_root();
   bool computation_resources();
   Node* tree_policy();
   Reward rollout_policy(Node* node);    // TODO: If the playout hits a branch that clears the grid, return it from the whole algorithm.
   void backpropagate(Node* node, Reward r);
-
+  void get_pv();
+  void display_pv();
   Reward ucb(Node* node, const Edge& edge);
 
   Edge* best_ucb(Node* node);     // TODO : refactor into only one method taking a parameter
@@ -61,11 +63,11 @@ public:
   Node* current_node();
   bool is_root(Node* root);
   bool is_terminal(Node* node);
-  void apply_action(Action action);
+  //void apply_action(Action action);
   ClusterData apply_action_blind(Action action);
   bool apply_action_blind(const ClusterData& cd);
-  void apply_action(Action action, StateData& sd);
-  void apply_action(const ClusterData& cd);
+  //oid apply_action(Action action, StateData& sd);
+  ClusterData apply_action(const ClusterData& cd);
   void undo_action();
   void undo_action(const ClusterData& cd);
   void init_children();
@@ -100,7 +102,7 @@ public:
   double get_exploration_cst() const;
 
   // Data
-  State& state;
+  sg::State& state;
   Node* root;
   // To keep track of the data during the search (indexed by ply)
   std::array<Node*, MAX_PLY>         nodes;       // Elements are stored in the MCTSLookupTable
@@ -108,12 +110,12 @@ public:
   std::array<StateData, MAX_PLY>     states;      // To keep history of states along a branch (stored on the heap)
   std::array<SearchData, MAX_PLY>    stack;       // To perform the playout samplings without creating new nodes
     // Counters for bookkeeping
-  int cnt_iterations      ;
-  int cnt_simulations     ;
-  int cnt_descent         ;
-  int cnt_explored_nodes  ;
-  int cnt_rollout         ;
-  int cnt_new_nodes       ;
+  int cnt_iterations;
+  int cnt_simulations;
+  int cnt_descent;
+  int cnt_explored_nodes;
+  int cnt_rollout;
+  int cnt_new_nodes;
   // Tree statistics
   double value_global_max;
   double value_global_min;
@@ -127,7 +129,7 @@ private:
 };
 
 struct Edge {
-  sg::ClusterData  cd { sg::CELL_NONE, sg::Color::Empty, 0 };
+  ::sg::ClusterData  cd { ::sg::CELL_NONE, ::sg::Color::Empty, 0 };
   int              sg_value_from_root { 0 };
   int              val_best { 0 };
   Reward           reward_avg_visit { 0 };
@@ -145,16 +147,15 @@ struct Node {
 };
 
 inline bool operator==(const Edge& a, const Edge& b) {
-  return a.cd == b.cd && a.val_best == b.val_best;
+  return a.cd.rep == b.cd.rep;
 }
-
 inline bool operator==(const Node& a, const Node& b) {
   return a.key == b.key;
 }
 
-extern std::ostream& operator<<(std::ostream& _out, const mcts::Agent& agent);
-extern std::ostream& operator<<(std::ostream& _out, const mcts::Edge& edge);
-extern std::ostream& operator<<(std::ostream& _out, const mcts::Node& node);
+extern std::ostream& operator<<(std::ostream& _out, const Agent& agent);
+extern std::ostream& operator<<(std::ostream& _out, const Edge& edge);
+extern std::ostream& operator<<(std::ostream& _out, const Node& node);
 
 typedef std::unordered_map<Key, Node> MCTSLookupTable;
 

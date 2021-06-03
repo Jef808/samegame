@@ -5,6 +5,7 @@
 #include <map>
 #include <string>
 #include <spdlog/spdlog.h>
+#include <spdlog/fmt/ostr.h>
 #include <sstream>
 #include <thread>
 
@@ -97,10 +98,10 @@ enum class Color_codes : int {
             }
             // Print row except last entry
             for (int x = 0; x < WIDTH - 1; ++x) {
-                ss << display::print_cell(grid, x + y * WIDTH, output_mode, cluster) << ' ';
+                ss << print_cell(grid, x + y * WIDTH, output_mode, cluster) << ' ';
             }
             // Print last entry,
-            ss << display::print_cell(grid, WIDTH - 1 + y * WIDTH, output_mode, cluster) << '\n';
+            ss << print_cell(grid, WIDTH - 1 + y * WIDTH, output_mode, cluster) << '\n';
         }
 
         if (labels) {
@@ -125,7 +126,7 @@ void enumerate_clusters(std::ostream& _out, const Grid& _grid)
 
     for (const auto& cd : cd_vec) {
         Cluster cluster = clusters::get_cluster(_grid, cd.rep);
-        spdlog::info("\n{}\n", cluster);
+        _out << cluster;
         std::this_thread::sleep_for(500.0ms);
     }
 }
@@ -137,8 +138,7 @@ void view_clusters(std::ostream& _out, const Grid& _grid)
     ClusterDataVec cd_vec = clusters::get_valid_clusters_descriptors(_grid);
 
     for (const auto& cd : cd_vec) {
-        auto ga = std::make_pair(_grid, cd.rep);
-        spdlog::info("\n{}\n", ga);
+        _out << to_string(_grid, cd.rep);
         std::this_thread::sleep_for(500.0ms);
     }
 }

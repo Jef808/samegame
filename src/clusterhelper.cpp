@@ -228,7 +228,7 @@ ClusterData kill_random_cluster(Grid& _grid)
 
         // Collect the non-empty cells in this row along with their colors
         auto row_begin_ndx = row * WIDTH;
-        auto row_begin_it = _grid.cbegin() + row_begin_ndx;
+        auto row_begin_it = _grid.begin() + row_begin_ndx;
         auto row_end_it = row_begin_it + WIDTH;
         for (auto it = row_begin_it;
              it != row_end_it;
@@ -270,27 +270,28 @@ ClusterData kill_random_cluster(Grid& _grid)
 
 } // namespace
 
-void input(std::istream& _in, Grid& _grid, ColorsCounter& _cnt_colors)
+void input(std::istream& _in, StateData& _sd)
 {
-    int _in_color = 0;
-    Color _color;
-    _grid.n_empty_rows = 0;
+    int _in_color { 0 };
+    Color _color { Color::Empty };
+    Grid& _grid = _sd.cells;
+    _grid.n_empty_rows = { 0 };
     //Key key = 0;
-    bool row_empty;
+    bool row_empty { true };
 
-    for (int row = 0; row < HEIGHT; ++row) {
+    for (auto row = 0; row < HEIGHT; ++row) {
         row_empty = true;
 
-        for (int col = 0; col < WIDTH; ++col) {
+        for (auto col = 0; col < WIDTH; ++col) {
             _in >> _in_color;
-            color = to_enum<Color>(_in_color + 1);
-            _grid[col + row * WIDTH] = color;
+            _color = to_enum<Color>(_in_color + 1);
+            _grid[col + row * WIDTH] = _color;
 
             // Generate the helper data at the same time
-            if (color != Color::Empty) {
+            if (_color != Color::Empty) {
                 row_empty = false;
                 //key ^= ZobristKey(col + row * WIDTH, color);
-                ++colors[color];
+                ++_sd.cnt_colors[to_integral(_color)];
             }
         }
         // Count the number of empty rows (we're going from top to down)
@@ -310,7 +311,7 @@ std::vector<Cluster> get_valid_clusters(const Grid& _grid)
         if (auto ndx = std::distance(grid_dsu.cbegin(), it);
             _grid[ndx] != Color::Empty && it->size() > 1)
         {
-            ret.emplace_back(ndx, it->members);
+            ret.emplace_back(*it);
         }
     }
     return ret;
@@ -411,8 +412,10 @@ Cluster get_cluster(const Grid& _grid, const Cell _cell)
         spdlog::warn("WARNING! Called get_cluster with an empty color");
     }
 
-    std::vector<Cell> ret { _cell };
-    ret.reserve(MAX_CELLS);
+    Cluster ret { _cell, };
+    ret.members.reserve(MAX_CELLS);
+    //std::vector<Cell> ret { _cell };
+    //ret.reserve(MAX_CELLS);
     std::deque<Cell> queue { _cell };
     std::set<Cell> seen { _cell };
 
@@ -423,8 +426,8 @@ Cluster get_cluster(const Grid& _grid, const Cell _cell)
         queue.pop_back();
         // remove boundary cells with color equal to current cell's color
         // Look right
-        if (cur % WIDTH < WIDTH - 1 && !seen.contains(cur + 1)) {
-            seen.insert(cur + 1);
+        if (cur % WIDTH < WIDTH - 1 && seen.insert(cur+1).second) {//!seen.contains(cur + 1)) {
+            //seen.insert(cur + 1);
             if (_grid[cur + 1] == color) {
                 ret.push_back(cur + 1);
                 queue.push_back(cur + 1);
@@ -432,24 +435,24 @@ Cluster get_cluster(const Grid& _grid, const Cell _cell)
         }
 
         // Look down
-        if (cur < (HEIGHT - 1) * WIDTH && !seen.contains(cur + WIDTH)) {
-            seen.insert(cur + WIDTH);
+        if (cur < (HEIGHT - 1) * WIDTH && seen.insert(cur + WIDTH).second) {
+            //seen.insert(cur + WIDTH);
             if (_grid[cur + WIDTH] == color) {
                 ret.push_back(cur + WIDTH);
                 queue.push_back(cur + WIDTH);
             }
         }
         // Look left
-        if (cur % WIDTH > 0 && !seen.contains(cur - 1)) {
-            seen.insert(cur - 1);
+        if (cur % WIDTH > 0 && seen.insert(cur - 1).second) {
+            //seen.insert(cur - 1);
             if (_grid[cur - 1] == color) {
                 ret.push_back(cur - 1);
                 queue.push_back(cur - 1);
             }
         }
         // Look up
-        if (cur > WIDTH - 1 && !seen.contains(cur - WIDTH)) {
-            seen.insert(cur - WIDTH);
+        if (cur > WIDTH - 1 && seen.insert(cur - WIDTH).second) {
+            //seen.insert(cur - WIDTH);
             if (_grid[cur - WIDTH] == color) {
                 ret.push_back(cur - WIDTH);
                 queue.push_back(cur - WIDTH);
@@ -458,8 +461,15 @@ Cluster get_cluster(const Grid& _grid, const Cell _cell)
     }
 
     //auto cl_ret = Cluster(cell, std::move(ret));
-    return Cluster(_cell, std::move(ret));
+    return ret;
 }
+
+ClusterData get_cluster_data(const Grid& _grid, const Cell _cell)
+{
+    const Cluster cluster = get_cluster(_grid, _cell);
+    return ClusterData { .rep = cluster.rep, .color = _grid[_cell], .size = cluster.size() };
+}
+
 
 namespace {
 
@@ -467,27 +477,20 @@ namespace {
     * @Return The descriptor associated to the given cluster.
     */
     ClusterData get_descriptor(const Grid& _grid, const Cluster& _cluster) {
-    ClusterData ret { .rep = _c.rep, .color = _g[_c.rep], .size = _c.size() };
-    return ret;
-
+        ClusterData ret { .rep = _cluster.rep, .color = _grid[_cluster.rep], .size = _cluster.size() };
+        return ret;
     }
-
 }  // namespace
 
 std::vector<ClusterData> get_valid_clusters_descriptors(const Grid& _grid)
 {
-    std::vector<ClusterData> ret;
-    ret.reserve(MAX_CELLS)
-    std::vector<Cluster> tmp;
-    tmp.reserve(MAX_CELLS);
+    std::vector<ClusterData> ret {};
 
-    std::copy_if(dsu_begin(), dsu_end(), back_inserter(tmp), [&_grid](const auto& cluster) {
-        return _grid[cluster.rep] != Color::Empty && cluster.size() > 1;
-    });
-
+    std::vector<Cluster> tmp = get_valid_clusters(_grid);
     ret.reserve(tmp.size());
-    std::transform(tmp.begin(), tmp.end(), back_inserter(ret), [](const auto& cluster) {
-        return get_descriptor(cluster);
+
+    std::transform(tmp.begin(), tmp.end(), back_inserter(ret), [&_grid](const auto& cluster) {
+        return get_descriptor(_grid, cluster);
     });
 
     return ret;

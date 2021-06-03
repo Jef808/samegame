@@ -4,14 +4,19 @@
 #include "types.h"
 #include <iosfwd>
 
-namespace sg::clusters {
+namespace sg {
+
+struct Grid;
+
+
+namespace clusters {
 
 
 /**
  * Read a grid from a file and populate the given Grid and
- * ColorsCounter.
+ * ColorCounter of the StateData object.
  */
- void input(std::istream&, Grid&, ColorsCounter&);
+ void input(std::istream&, StateData&);
 
 /**
  * @Return true if the given cell has a right neighbor of the same color,
@@ -36,6 +41,7 @@ namespace sg::clusters {
  */
  Cluster get_cluster(const Grid&, const Cell);
 
+ ClusterData get_cluster_data(const Grid&, const Cell);
 /**
  * Kill the cluster to which the given cell belongs and let the
  * remaining cells drop into the holes. Columns are then shifted
@@ -60,8 +66,8 @@ ClusterData apply_action(Grid&, const Cell);
 
 
 
-} // namespace sg::clusters
-
+} // namespace clusters
+} // namespace sg
 
 
 #endif

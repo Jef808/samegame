@@ -1,8 +1,9 @@
 #include <algorithm>
 #include <chrono>
 #include <fstream>
-#include <gtest/gtest.h>
-#include <spdlog/spdlog.h>
+#include "gtest/gtest.h"
+#include "gmock/gmock.h"
+#include "spdlog/spdlog.h"
 #include <vector>
 #include "mcts.h"
 #include "samegame.h"
@@ -33,11 +34,6 @@ protected:
         _if.close();
     }
 
-    void SetUp() override
-    {
-        State::init();
-    }
-
     StateData sd_root;
     State state;
     Agent agent;
@@ -47,21 +43,26 @@ TEST_F(AgentTest, InitSearchStoresStateDescriptor)
 {
     agent.init_search();
 
-    EXPECT_EQ(state.p_data, &agent.states[0]);
+    EXPECT_THAT(agent.states[0].cells, ::testing::ContainerEq(agent.state.data().cells));
 }
 
-// TEST_F(AgentTest, InitSearchCreatesRootNodeInHashTable)
-// {
-//     agent.init_search();
+TEST_F(AgentTest, InitSearchCreatesRootNodeInHashTable)
+{
+    agent.init_search();
 
-//     EXPECT_EQ(agent.nodes[1]->key, state.key());
-//     EXPECT_EQ(cnt_new_nodes, 1);
-// }
+    EXPECT_EQ(agent.nodes[1]->key, state.key());
+    EXPECT_EQ(MCTS.size(), 1);
+}
 
-// TEST_F(AgentTest, InitSearchTwiceCreatesOnlyOneNode)
-// {
-//     agent.init_search();
-//     agent.init_search();
+TEST_F(AgentTest, InitSearchTwiceCreatesOnlyOneNode)
+{
+    agent.init_search();
 
-//     EXPECT_EQ(cnt_new_nodes, 1);
-// }
+    Node* first = agent.current_node();
+
+    agent.init_search();
+    Node* second = agent.current_node();
+
+    EXPECT_EQ(MCTS.size(), 1);
+    EXPECT_THAT(static_cast<void*>(first), testing::Eq(static_cast<void*>(second)));
+}

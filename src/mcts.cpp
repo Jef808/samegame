@@ -20,7 +20,7 @@ using namespace sg;
 
 namespace mcts {
 
-const Action ACTION_NONE = CELL_NONE;
+const Action ACTION_NONE = ClusterData();
 Edge   EDGE_NONE = { ClusterData{sg::CELL_NONE, sg::Color::Empty, 0}, 0, 0, 0, 0 };
 
 std::ostream& operator<<(std::ostream& _out, const mcts::Agent& agent) {
@@ -43,23 +43,49 @@ MCTSLookupTable MCTS {};
 
 // get_node queries the Lookup Table until it finds the node with given position,
 // or creates a new entry in case it doesn't find it.
-Node* get_node(const State& state)
-{
-    Key state_key = state.key();
+// Node* get_node(const State& state)
+// {
+//     Key state_key = state.key();
 
-    auto node_it = MCTS.find(state_key);
-    if (node_it != MCTS.end())
-        return &(node_it->second);
+
+//     auto node_it = MCTS.find(state_key);
+//     if (node_it != MCTS.end())
+//         return &(node_it->second);
+
+//     // Insert the new node in the Hash table if it wasn't found.
+
+//     new_node.key = state_key;
+//     Node new_node { .key = state.key(), };
+//     //new_node.parent = state.p_data->parent_action;    // We've set actions[0] to ACTION_NONE so okay
+
+//     auto new_node_it = MCTS.insert(std::make_pair(state_key, new_node)).first;
+
+//     return &(new_node_it->second);
+// }
+
+
+Node* get_node(const sg::State& state)
+{
+    Node new_node { .key = state.key(), };
+    auto [it, success] = MCTS.insert(std::make_pair(new_node.key, new_node));
+
+    return &it->second;
+
+    // auto node_it = MCTS.find(state_key);
+    // if (node_it != MCTS.end())
+    //     return &(node_it->second);
 
     // Insert the new node in the Hash table if it wasn't found.
-    Node new_node {};
-    new_node.key = state_key;
+
+    //new_node.key = state_key;
+
     //new_node.parent = state.p_data->parent_action;    // We've set actions[0] to ACTION_NONE so okay
 
-    auto new_node_it = MCTS.insert(std::make_pair(state_key, new_node)).first;
+    // auto new_node_it = MCTS.insert(std::make_pair(state_key, new_node)).first;
 
-    return &(new_node_it->second);
+    // return &(new_node_it->second);
 }
+
 
 // Used for choosing actions during the random_simulations.
 namespace Random {
@@ -68,20 +94,28 @@ namespace Random {
     std::mt19937 e { rd() }; // or std::default_random_engine e{rd()};
     std::uniform_int_distribution<int> dist { 0, MAX_CHILDREN };
 
-    Action choose(const ActionVec& choices)
+    template < typename Cont, typename Cont::value_type _Default >
+    typename Cont::value_type choose (const Cont& choices)
     {
         if (choices.empty())
-            return ACTION_NONE;
+            return typename Cont::value_type();
         return choices[dist(rd) % choices.size()];
     }
 
-    // Return a random choice, or a NULL cd
-    ClusterData choose(const sg::State::ClusterDataVec& choices)
-    {
-        if (choices.empty())
-            return ClusterData { CELL_NONE, Color::Empty, 0 };
-        return choices[dist(rd) % choices.size()];
-    }
+    // Action choose(const ActionVec& choices)
+    // {
+    //     if (choices.empty())
+    //         return ACTION_NONE;
+    //     return choices[dist(rd) % choices.size()];
+    // }
+
+    // // Return a random choice, or a NULL cd
+    // ClusterData choose(const sg::ClusterDataVec& choices)
+    // {
+    //     if (choices.empty())
+    //         return ClusterData { CELL_NONE, Color::Empty, 0 };
+    //     return choices[dist(rd) % choices.size()];
+    // }
 }
 
 //******************************* Time management *************************/
@@ -127,7 +161,7 @@ void init_logger()
 }
 
 // TODO: The problem right now is with the actions stack not getting initialized
-Agent::Agent(State& state)
+Agent::Agent(sg::State& state)
     : state(state)
 {
     init_logger();
@@ -151,12 +185,16 @@ void Agent::init_search()
     global_max_depth    = 0;
 
     // Backup the state descriptor in case it is stored higher up on the states stack
-    states[0] = *state.p_data;
-    state.p_data = &(states[0]);
+    // states[0] = *state.p_data;
+    // state.p_data = &(states[0]);
 
+    state.redirect_data_to(states[0]);
     root = nodes[1] = get_node(state);
-
     actions[0] = &EDGE_NONE;
+
+    if (root->n_visits == 0) {
+        init_children();
+    }
 }
 
 //******************************** Main methods ***************************/
@@ -170,15 +208,14 @@ void Agent::init_search()
 // STACKS AT EVERY CALL OF SET_ROOT
 ///////////////////////////////////////////
 
-StateData copy_sd(const State& state)
-{
-    return { state.cells(), state.key(), state.n_empty_rows() };
-    //return ret;
-    // std::copy(state.cells().begin(), state.cells().end(), ret.cells.begin());
-    // ret.cells = state.cells();
-    // ret.key = state.key();
-    // ret.n_empty_rows = state.p_data->n_empty_rows;
-}
+// StateData copy_sd(const State& state)
+// {
+//     //return ret;
+//     // std::copy(state.cells().begin(), state.cells().end(), ret.cells.begin());
+//     // ret.cells = state.cells();
+//     // ret.key = state.key();
+//     // ret.n_empty_rows = state.p_data->n_empty_rows;
+// }
 
 void Agent::set_root()
 {
@@ -191,8 +228,9 @@ void Agent::set_root()
     actions = { {} };
     stack = { {} };
 
-    states[0] = *(state.p_data);
-    state.p_data = &(states[0]);
+    // states[0] = *(state.p_data);
+    // state.p_data = &(states[0]);
+    state.redirect_data_to(states[0]);
 
     actions[0] = &EDGE_NONE;
 
@@ -238,11 +276,46 @@ void Agent::set_root()
 // THE 'USER INTERFACE' TO THE MCTS ALGORITHM
 ///////////////////////////////////////////////
 
-ClusterData Agent::MCTSBestAction()
+void Agent::get_pv()
+{
+    assert(is_root(current_node()));
+    stack[ply].reward = 0;
+    ClusterData* p_cd;
+
+    while (!is_terminal(current_node())) {
+        p_cd = &(best_visits(current_node())->cd);
+        apply_action(*p_cd);
+    }
+}
+
+void Agent::display_pv()
 {
     auto logger = spdlog::get("mcts_logger");
 
-    init_search();
+    int final_ply = ply;
+    state.copy_data_from(states[0]);
+
+    std::pair<State&, Cell> sa { state, CELL_NONE };
+    logger->trace("\n{}\n\n", sa);
+
+    Reward score = 0;
+
+    for (int i=1; i<final_ply; ++i) {
+        state.apply_action(stack[i].cd);
+        //sa.first.apply_action(stack[i]);
+        score += stack[i-1].reward;
+        logger->trace("\n{}\nScore: {}", sa, score);
+        sa.second = stack[i-1].cd.rep;
+    }
+
+    logger->trace("Final score: {}", score + evaluate_terminal());
+}
+
+ClusterData Agent::MCTSBestActions()
+{
+    auto logger = spdlog::get("mcts_logger");
+
+    //init_search();
 
     if (is_terminal(root)) {
         logger->trace("root is terminal??");
@@ -252,6 +325,8 @@ ClusterData Agent::MCTSBestAction()
     while (computation_resources()) {
         step();
     }
+
+    logger->trace("Finished {} steps, the best line of actions is\n", cnt_iterations);
 
     auto* choice = best_visits(root);
 
@@ -396,6 +471,8 @@ void Agent::init_children()
 
     logger->trace("Init_children for node {}\nValid actions:\n    ", *current_node());
 
+    assert(current_node()->n_visits == 0);
+
     for (auto act : valid_actions) {
          logger->trace("{}", act);
     }
@@ -475,7 +552,7 @@ void Agent::backpropagate(Node* node, Reward r)
 /**
  * Returns the average reward after running `n_simuls` starting with `_cd`
  */
-Reward Agent::random_simulation(const ClusterData& _cd, std::size_t n_simuls)
+Reward Agent::random_simulation(const ClusterData& _cd, size_t n_simuls)
 {
     auto action_trivial = [](const ClusterData& cd) {
         return cd.rep == CELL_NONE || cd.color == Color::Empty || cd.size < 2;
@@ -486,21 +563,14 @@ Reward Agent::random_simulation(const ClusterData& _cd, std::size_t n_simuls)
         return 0;
     }
 
-    // Backup the StateData for restoring the state before returning
-    const StateData sd_backup = *state.p_data;
+  //// The ActionData object that will be used along the simulation.
+    ClusterData cd = this->apply_action(_cd);
 
-    // The StateData object that will be used along the simulation.
-    StateData sd_simul {};
+    // A copy of the starting state for resetting the random simulations
+    const StateData sd_simul_backup = states[ply];
 
-    // The ActionData object that will be used along the simulation.
-    ClusterData cd = _cd;
-
-    // Apply the provided action but write the result on sd_simul
-    bool action_valid = state.apply_action(cd, sd_simul);
-    assert(action_valid);
-
-    // Keep a copy of this first state to initialize all the simulations faster
-    const StateData sd_simul_root = sd_simul;
+    // The (mutable) StateData object holding the data along one whole simulation
+    StateData sd_simul = states[ply];
 
     Reward total_reward = 0, score = evaluate_valid_action(cd);
 
@@ -521,14 +591,15 @@ Reward Agent::random_simulation(const ClusterData& _cd, std::size_t n_simuls)
         total_reward += score;
 
         // Reset score and restore sd_simul to sd_simul_root for the next simulation.
-        *state.p_data = sd_simul_root;
+        state.copy_data_from(sd_simul_backup);
+
         score = 0;
     }
 
     Reward avg_reward = total_reward / n_simuls;
 
-    // Restore the initial state
-    *state.p_data = sd_backup;
+  //// undo the initial action we applied when entering the function
+    undo_action();
 
     return avg_reward;
 }
@@ -665,9 +736,9 @@ bool Agent::is_root(Node* node)
 
 bool Agent::is_terminal(Node* node)
 {
-    if (node->key & 1) {
-        return node->key & 2;
-    }
+    // if (node->key & 1) {
+    //     return node->key & 2;
+    // }
 
     return node->n_visits > 0 && node->n_children == 0;
 }
@@ -677,31 +748,35 @@ bool Agent::is_terminal(Node* node)
 // AND THE DYNAMIC TREE DATA
 ////////////////////////////////////////
 
-//Sends a cluster as the action
-void Agent::apply_action(const ClusterData& cd)
+// Sends a cluster as the action
+// NOTE: After a call to Agent::apply_action(cd), the state's data
+// points to the agent's states[ply-1]
+//
+// In other words, we use the agent's states[ply] to record the new state.
+ClusterData Agent::apply_action(const ClusterData& _cd)
 {
     assert(ply < MAX_PLY);
 
+    // So at (this) ply, the action is given by stack[ply]
+    stack[ply].cd = _cd;
     stack[ply].ply = ply;
-    stack[ply].cd = cd; // This action dictates the next state, and current state (data) will go to stack[ply].previous
-    //stack[ply].current_action = cd.rep;
+    stack[ply].reward = evaluate_valid_action(_cd);
 
     //spdlog::debug("Before state apply action\n{}\n", state);
-
-    state.apply_action(cd, states[ply]); // The state will store its new data on the passed StateData object
     ++ply;
+    return state.apply_action(_cd, states[ply]); // The state will store its new data on the passed StateData object
 
     //spdlog::debug("After state apply action\n{}\n", state);
 }
 
-bool Agent::apply_action_blind(const ClusterData& cd)
-{
-    if (cd.color == Color::Empty || cd.size < 2 || cd.rep == CELL_NONE) {
-        return false;
-    }
+// bool Agent::apply_action_blind(const ClusterData& cd)
+// {
+//     if (cd.color == Color::Empty || cd.size < 2 || cd.rep == CELL_NONE) {
+//         return false;
+//     }
 
-    return state.apply_action_blind(cd);
-}
+//     return state.apply_action_blind(cd);
+// }
 
 // // Sends the representative of a cluster as the action
 // void Agent::apply_action(Action action)

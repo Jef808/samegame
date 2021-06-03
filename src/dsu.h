@@ -5,6 +5,7 @@
 #include <cassert>
 #include <iosfwd>
 #include <iostream>
+#include <numeric>
 #include <memory>
 #include <spdlog/fmt/ostr.h> // For fmt to recognize the operator<< of ClusterT
 #include <sstream>
@@ -13,78 +14,71 @@
 #include <vector>
 
 // Forward declare a template struct
-template < typename Index, Index DefaultValue >
+template < typename Index, Index IndexNone >
 struct ClusterT;
 
 // Forward declare a template function so it is recognized inside of ClusterT
-template < typename _Index, _Index _DefaultValue >
-std::ostream& operator<<(std::ostream&, const ClusterT<_Index, _DefaultValue>&);
+template < typename _Index, _Index _IndexNone >
+std::ostream& operator<<(std::ostream&, const ClusterT<_Index, _IndexNone>&);
 
 /**
  * A Cluster (of indices) has a `representative` index along with a container
  * containing all of its members.
  */
-template <typename Index_T, Index_T DefaultValue>
+template <typename Index_T, Index_T IndexNone>
 struct ClusterT {
     // Basic type aliases
     using Index = Index_T; // This is to make the Index type available to DSU
     static_assert(std::is_integral<Index>::value); // || std::is_enum<Index>::value);
+    using value_type = Index;
     using Container = std::vector<Index>;
+    using size_type = typename Container::size_type;
+    using iterator = typename Container::iterator;
+    using const_iterator = typename Container::const_iterator;
 
     // Data members
     Index rep;
     Container members;
 
-    ClusterT()
-        : rep { DefaultValue }
-        , members { { DefaultValue } }
+    constexpr ClusterT() : rep { IndexNone } , members(1, IndexNone)
     {
     }
-
     /** For reseting the DSU. */
-    explicit ClusterT(Index _ndx)
-        : rep(_ndx)
-        , members({ _ndx })
+    explicit constexpr ClusterT(Index _ndx) : rep { _ndx } , members(1, _ndx)
     {
     }
-
-    explicit ClusterT(Container&& _cont)
-        : rep()
-        , members(_cont)
+    ClusterT(Container&& _cont) : rep { IndexNone }, members(_cont)
     {
         if (!_cont.empty()) {
             rep = _cont.back();
         }
     }
-
-    ClusterT(Index _ndx, Container&& _cont)
-        : rep(_ndx)
-        , members(_cont)
+    ClusterT(Index _ndx, Container&& _cont) : rep { _ndx } , members(_cont)
     {
     }
 
-    void append(Index ndx) { members.push_back(ndx); }
-
+    void push_back(Index ndx) { members.push_back(ndx); }
     auto size() const { return members.size(); }
 
-    typename Container::iterator begin() { return std::begin(members); }
-    typename Container::iterator end() { return std::end(members); }
-    typename Container::const_iterator cbegin() const { return std::cbegin(members); }
-    typename Container::const_iterator cend() const { return std::cend(members); }
+    auto begin() { return members.begin(); }
+    auto end() { return members.end(); }
+    auto begin() const { return members.begin(); }
+    auto end() const { return members.end(); }
+    auto cbegin() const { return members.begin(); }
+    auto cend() const { return members.end(); }
 
     // Here we are declaring that template specializations of the above template operator<<
     // with parameters matching those of a ClusterT will be treated as a 'friend function'
     // of the matching ClusterT
-    friend std::ostream& operator<< <> (std::ostream& _out, const ClusterT<Index, DefaultValue>&);
+    friend std::ostream& operator<< <> (std::ostream& _out, const ClusterT<Index, IndexNone>&);
 
     // Here we are telling the compiler to create a template specialization
     // of the above declared template operator== using the ClusterT's template parameters
     // in order to compare two ClusterT
-    bool operator== (const ClusterT<Index, DefaultValue>& other) const {
+    bool operator== (const ClusterT<Index, IndexNone>& other) const {
         if (size() != other.size()) {
             return false;
         }
-
         // Create copies so we can sort them (both 'this' and 'other' arguments are const)
         auto this_members = members;
         auto other_members = other.members;
@@ -98,11 +92,6 @@ struct ClusterT {
                 return false;
             }
         }
-        // for (auto i = 0; i < a_members.size(); ++i) {
-        //     if (this_members[i] != other_members[i]) {
-        //         return false;
-        //     }
-        // }
         return true;
     }
 };
@@ -113,29 +102,32 @@ struct ClusterT {
  * follow e_{i+1} = array[i]. When finally e_{i+1} == i then i is the representative and the
  * whole cluster is stored there.
  */
-    template <typename Cluster, size_t N>
+    template < typename _Cluster, size_t N >
     class DSU {
     public:
         // Basic type aliases
+        using Cluster = _Cluster;
         using Index = typename Cluster::Index;
         using Container = typename Cluster::Container;
-        using ClusterList = std::array<Cluster, N>;
+        using ClusterList = std::array<_Cluster, N>;
+        using value_type = Cluster;
+        using iterator = typename ClusterList::iterator;
+        using const_iterator = typename ClusterList::const_iterator;
 
-        DSU()
-            : m_clusters { Cluster() }
+        static inline constexpr std::array<Index, N> init = []() {
+             std::array<Index, N> ret{};
+             std::iota(ret.begin(), ret.end(), 0);
+             return ret;
+        }();
+
+        constexpr DSU() : m_clusters( reset() ) { }
+        constexpr ClusterList reset()
         {
-            reset();
-        }
-
-        void reset()
-        {
-            Index ndx = 0;
-            auto reset_cluster = [&ndx](Cluster& cl) mutable {
-                cl = Cluster(ndx);
-                ++ndx;
-            };
-
-            std::for_each(m_clusters.begin(), m_clusters.end(), reset_cluster);
+            ClusterList ret { };
+            std::transform(init.begin(), init.end(), ret.begin(), [](Index ndx) {
+                return Cluster(ndx);
+            });
+            return ret;
         }
 
         // NOTE: One can also keep track of all visited nodes during the search and at the end
@@ -197,10 +189,14 @@ struct ClusterT {
             return m_clusters[rep];
         }
 
-        typename ClusterList::iterator begin() { return m_clusters.begin(); }
-        typename ClusterList::iterator end() { return m_clusters.end(); }
-        typename ClusterList::const_iterator cbegin() const { return m_clusters.cbegin(); }
-        typename ClusterList::const_iterator cend() const { return m_clusters.cend(); }
+
+
+            auto begin() { return m_clusters.begin(); }
+            auto end() { return m_clusters.end(); }
+            auto begin() const { return m_clusters.begin(); }
+            auto end() const { return m_clusters.end(); }
+            auto cbegin() const { return m_clusters.cbegin(); }
+            auto cend() const { return m_clusters.cend(); }
 
     private:
         ClusterList m_clusters;
@@ -211,8 +207,8 @@ struct ClusterT {
 // When writing _out << cluster on an instantiated ClusterT<typename T, T t> for some
 // T, the compiler will find this function and know it can access cluster's private members,
 // as long as "dsu.h" is included.
-template <typename _Index, _Index _DefaultValue>
-inline std::ostream& operator<<(std::ostream& _out, const ClusterT<_Index, _DefaultValue>& cluster)
+template <typename _Index, _Index _IndexNone>
+inline std::ostream& operator<<(std::ostream& _out, const ClusterT<_Index, _IndexNone>& cluster)
 {
     _out << "Rep =" << cluster.rep << " Members = {";
     for (auto m : cluster.members) {
@@ -223,10 +219,10 @@ inline std::ostream& operator<<(std::ostream& _out, const ClusterT<_Index, _Defa
 
 // The binary template function operator== acting on instance of ClusterT<T, T t> simply calls the unary operator==
 // defined in the template struct.
-template < typename _Index_T, _Index_T _DefaultValue >
-inline bool operator==(const ClusterT<_Index_T, _DefaultValue>& a, const ClusterT<_Index_T, _DefaultValue>& b)
+template < typename _Index_T, _Index_T _IndexNone >
+inline bool operator==(const ClusterT<_Index_T, _IndexNone>& a, const ClusterT<_Index_T, _IndexNone>& b)
 {
-    return ClusterT<_Index_T, _DefaultValue>::operator==(b);
+    return ClusterT<_Index_T, _IndexNone>::operator==(b);
 }
 
 

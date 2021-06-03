@@ -53,9 +53,7 @@ void view_clusters(std::ostream&, const Grid&);
 //     if (_cell != CELL_NONE)
 //         m_cluster = _state.get_cluster_blind(_cell);
 // }
-// This is defined as inline in "dsu.h". This way, if we have a specified ClusterT in a source file that
-// includes both "samegame.h" and "dsu.h", if _out << ClusterT is called for some ostream _out, the compiler
-// will generate code (inline) following the instructions in "dsu.h"
+// This is defined as inline in "dsu.h".
 //
 // PROBLEM: There has to be an issue with the fact that it will use an inline function while this is declared
 // to have external linkage.... It seems like two uncompatible ways to solve the same problem

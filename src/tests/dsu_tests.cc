@@ -1,38 +1,39 @@
 
+#include "gtest/gtest.h"
+#include "gmock/gmock.h"
+#include "spdlog/spdlog.h"
 #include <algorithm>
+#include <functional>
 #include <fstream>
 #include <numeric>
-#include <gtest/gtest.h>
-#include <spdlog/spdlog.h>
+#include <string>
 #include <sstream>
 #include <vector>
-#include "samegame.h"
+//#include "samegame.h"
 #include "dsu.h"
 
-namespace sg {
 
 namespace {
 
-    using sg::Cell;
-    using sg::MAX_CELLS;
-    using Cluster = sg::State::Cluster;
+    using Index = int;
+    const Index IndexMax = 10;
+    const Index IndexNone = 11;
+    using Cluster = ClusterT<int, IndexNone>;
     using Container = Cluster::Container;
-    using DSU = DSU<Cluster, MAX_CELLS>;
+    using DSU = DSU<Cluster, IndexMax>;
 
-    std::string to_string(const Container& cont) {
-        std::stringstream ss;
-        ss << '{';
-        for (auto m : cont) {
-            ss << m << ' ';
-        }
-        ss << '}';
-        return ss.str();
-    }
+    // std::string to_string(const Container& cont) {
+    //     std::stringstream ss;
+    //     ss << '{';
+    //     for (auto m : cont) {
+    //         ss << m << ' ';
+    //     }
+    //     ss << '}';
+    //     return ss.str();
+    // }
 
     class DsuTest : public ::testing::Test {
     protected:
-        const std::string filepath = "../data/input.txt";
-
         DsuTest()
             : dsu()
         {}
@@ -43,8 +44,18 @@ namespace {
         }
 
         DSU dsu;
-    };
 
+        testing::AssertionResult HasDefaultClusters()
+        {
+            bool result = std::all_of(dsu.begin(), dsu.end(), [n=-1](auto const& cluster) mutable {
+                return cluster.members == Container(1, ++n); 
+            });
+            if (result) {
+                return testing::AssertionSuccess();
+            }
+            return testing::AssertionFailure();
+        }
+    };
 
 
  /**
@@ -52,39 +63,30 @@ namespace {
  */
     TEST_F(DsuTest, ClusterDefaultInitializesWithTemplateParameter)
     {
-        using ClusterT1 = ClusterT<int, 1>;
-        using ContainerT1 = ClusterT1::Container;
+        Cluster cluster {};
+        Index rep_expected = IndexNone;
+        Container members_expected = Container(1, IndexNone);
 
-        Cluster cluster_sg;
-        ClusterT1 cluster_t1;
+        EXPECT_THAT(cluster.rep, rep_expected);
+        EXPECT_THAT(cluster.members, testing::ContainerEq(members_expected));
 
-        const Container expected_members_sg { CELL_NONE };
-        const ContainerT1  expected_members_t1 { 1 };
+        const Index OtherIndexNone = 20;
+        using OtherCluster = ClusterT<int, OtherIndexNone>;
+        using OtherContainer = OtherCluster::Container;
 
-        EXPECT_EQ(cluster_sg.rep, CELL_NONE);
-        EXPECT_EQ(cluster_sg.members, expected_members_sg);
+        OtherCluster other_cluster {};
+        Index other_rep_expected = OtherIndexNone;
+        OtherContainer other_members_expected = Container(1, OtherIndexNone);
 
-        EXPECT_EQ(cluster_t1.rep, 1);
-        EXPECT_EQ(cluster_t1.members, expected_members_t1);
+        EXPECT_THAT(other_cluster.rep, other_rep_expected);
+        EXPECT_THAT(other_cluster.members, testing::ContainerEq(other_members_expected));
     }
+
+
 
     TEST_F(DsuTest, DSUDefaultConstructor)
     {
-        std::array<Cell, MAX_CELLS> index;
-        std::iota(index.begin(), index.end(), 0);
-
-        DSU& _dsu = dsu;
-
-        auto dsu_has_expected_default_cluster = [&_dsu](const Cell ndx)
-        {
-            bool res = _dsu.get_cluster(ndx).members == Container { ndx };
-            if (!res) {
-                spdlog::info("Failure: Cluster at index {} is {}\n but expected members are {}", ndx, _dsu.get_cluster(ndx), to_string(Container { ndx }));
-            }
-            return res;
-        };
-
-        EXPECT_TRUE(std::all_of(index.begin(), index.end(), dsu_has_expected_default_cluster));
+        EXPECT_EQ(HasDefaultClusters(), testing::AssertionSuccess());
     }
 
     TEST_F(DsuTest, ComparingClustersChecksMembersNotRepresentative)
@@ -118,6 +120,4 @@ namespace {
         EXPECT_EQ(res_1, expected);
         EXPECT_EQ(res_2, expected);
     }
-
 } // namespace
-} // namespace sg

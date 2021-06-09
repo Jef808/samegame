@@ -50,6 +50,7 @@ private:
 extern std::ostream& operator<<(std::ostream&, const std::pair<const State&, Cell>&);
 extern std::ostream& operator<<(std::ostream&, const std::pair<Grid&, int>&);
 extern std::ostream& operator<<(std::ostream&, const State&);
+extern std::ostream& operator<<(std::ostream&, const StateData&);
 extern std::ostream& operator<<(std::ostream&, const ClusterData&);
 
 extern bool operator==(const StateData& a, const StateData& b);

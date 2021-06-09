@@ -5,23 +5,13 @@
 
 namespace sg::zobrist {
 
-namespace {
 
-/**
- * A functor that computes an index from the building blocks of the states (cell, color)
-  */
-struct ZobristIndex {
-    //  NOTE: The upper left cell in the grid corresponds to 0,
-    // so wee need to increment the cells when computing the key!
-    auto operator()(const Cell cell, const Color color) {
-        return (cell + 1) * to_integral(color);
-    }
-};
+ZTable Table { };
 
-::zobrist::KeyTable<ZobristIndex, sg::Key, N_ZOBRIST_KEYS> KeyTable { 2 };
-
-} // namespace
-
+Key get_key(const Cell _cell, const Color _color)
+{
+    return Table(_cell, _color);
+}
 
 /**
  * Xor with a unique random key for each (index, color) appearing in the grid.
@@ -42,7 +32,7 @@ Key get_key(const Grid& _grid)
             if (const Color color = _grid[cell]; color != Color::Empty) {
                 row_empty = false;
 
-                key ^= KeyTable(cell, color);
+                key ^= Table(cell, color);
 
                 // If the terminal status of the _grid is known, continue
                 if (terminal_status_known) {
@@ -64,7 +54,7 @@ Key get_key(const Grid& _grid)
         if (const Color color = _grid[cell]; color != Color::Empty) {
             row_empty = false;
 
-            key ^= KeyTable(cell, color);
+            key ^= Table(cell, color);
 
             // If the terminal status of the _grid is known, continue
             if (terminal_status_known) {

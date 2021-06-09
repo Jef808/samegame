@@ -59,6 +59,7 @@ TEST_F(SamegameTest, CanCopyStateData)
 
     sd_root.cells[0] = Color(1);
     EXPECT_THAT(sd_copy.cells[0], ::testing::Eq(Color::Empty));
+
 }
 
 TEST_F(SamegameTest, CanCloneStateData)

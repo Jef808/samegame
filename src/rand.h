@@ -1,6 +1,7 @@
 #ifndef __RANDOMUTILS_H_
 #define __RANDOMUTILS_H_
 
+#include <array>
 #include <type_traits>
 #include <random>
 #include <memory>

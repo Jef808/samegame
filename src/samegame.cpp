@@ -74,10 +74,7 @@ bool key_uninitialized(const Grid& grid, Key key)
 
 Key State::key() const
 {
-    if (key_uninitialized(p_data->cells, p_data->key)) {
-        p_data->key = zobrist::get_key(p_data->cells);
-    }
-    return p_data->key;
+    return p_data->key = zobrist::get_key(p_data->cells);
 }
 
 /**
@@ -146,9 +143,14 @@ std::ostream& operator<<(std::ostream& _out, const std::pair<const State&, Cell>
     return _out << display::to_string(_sc.first.data().cells, _sc.second);
 }
 
-std::ostream& operator<<(std::ostream& _out, const State& state)
+std::ostream& operator<<(std::ostream& _out, const State& _state)
 {
-    return _out << display::to_string(state.p_data->cells, CELL_NONE);
+    return _out << display::to_string(_state.p_data->cells, CELL_NONE);
+}
+
+std::ostream& operator<<(std::ostream& _out, const StateData& _sd)
+{
+    return _out << display::to_string(_sd.cells, CELL_NONE) << "\n    Key = " << _sd.key;
 }
 
 std::ostream& operator<<(std::ostream& _out, const ClusterData& _cd)

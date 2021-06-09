@@ -26,7 +26,7 @@ struct ClusterT;
 namespace sg {
 
 using Key = uint64_t;
-auto inline constexpr N_ZOBRIST_KEYS = MAX_CELLS * MAX_COLORS;
+auto inline constexpr N_ZOBRIST_KEYS = (MAX_CELLS + 1) * MAX_COLORS;
 
 // State descriptor
 typedef std::array<int, MAX_COLORS + 1> ColorCounter;

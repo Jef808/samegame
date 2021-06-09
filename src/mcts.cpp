@@ -566,7 +566,7 @@ Reward Agent::random_simulation(const ClusterData& _cd, size_t n_simuls)
   //// The ActionData object that will be used along the simulation.
     ClusterData cd = this->apply_action(_cd);
 
-    // A copy of the starting state for resetting the random simulations
+    // As copy of the starting state for resetting the random simulations
     const StateData sd_simul_backup = states[ply];
 
     // The (mutable) StateData object holding the data along one whole simulation
@@ -579,7 +579,7 @@ Reward Agent::random_simulation(const ClusterData& _cd, size_t n_simuls)
         while (1) {
             cd = state.apply_random_action();
             // Break when there are no more valid actions to perform.
-            if (action_trivial(cd)) {
+            if (cd.size < 2) {
                 break;
             }
             score += evaluate_valid_action(cd);

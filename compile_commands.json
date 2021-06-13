@@ -1,77 +1,142 @@
 [
 {
   "directory": "/home/jfa/code/projects/samegame/build",
-  "command": "/usr/bin/clang++ -DSPDLOG_COMPILED_LIB -I/home/jfa/code/projects/samegame/src -I/home/jfa/code/projects/samegame/include -I/home/jfa/code/projects/samegame/data  -Wall -g -std=gnu++2a -o CMakeFiles/test_clusters.dir/tests/display_clusters.cpp.o -c /home/jfa/code/projects/samegame/tests/display_clusters.cpp",
+  "command": "/usr/bin/c++  -I/home/jfa/code/projects/samegame/src -O3 -DNDEBUG -std=gnu++20 -o CMakeFiles/sg.dir/src/samegame.cpp.o -c /home/jfa/code/projects/samegame/src/samegame.cpp",
+  "file": "/home/jfa/code/projects/samegame/src/samegame.cpp"
+},
+{
+  "directory": "/home/jfa/code/projects/samegame/build",
+  "command": "/usr/bin/c++  -I/home/jfa/code/projects/samegame/src -O3 -DNDEBUG -std=gnu++20 -o CMakeFiles/sg.dir/src/clusterhelper.cpp.o -c /home/jfa/code/projects/samegame/src/clusterhelper.cpp",
+  "file": "/home/jfa/code/projects/samegame/src/clusterhelper.cpp"
+},
+{
+  "directory": "/home/jfa/code/projects/samegame/build",
+  "command": "/usr/bin/c++  -I/home/jfa/code/projects/samegame/src -O3 -DNDEBUG -std=gnu++20 -o CMakeFiles/sg.dir/src/sghash.cpp.o -c /home/jfa/code/projects/samegame/src/sghash.cpp",
+  "file": "/home/jfa/code/projects/samegame/src/sghash.cpp"
+},
+{
+  "directory": "/home/jfa/code/projects/samegame/build",
+  "command": "/usr/bin/c++  -I/home/jfa/code/projects/samegame/src -O3 -DNDEBUG -std=gnu++20 -o CMakeFiles/sg.dir/src/display.cpp.o -c /home/jfa/code/projects/samegame/src/display.cpp",
+  "file": "/home/jfa/code/projects/samegame/src/display.cpp"
+},
+{
+  "directory": "/home/jfa/code/projects/samegame/build",
+  "command": "/usr/bin/c++ -DSPDLOG_COMPILED_LIB -DSPDLOG_LEVEL_NAME_CRITICAL=\\\"critical\\\" -DSPDLOG_LEVEL_NAME_DEBUG=\\\"debug\\\" -DSPDLOG_LEVEL_NAME_ERROR=\\\"error\\\" -DSPDLOG_LEVEL_NAME_INFO=\\\"info\\\" -DSPDLOG_LEVEL_NAME_OFF=\\\"off\\\" -DSPDLOG_LEVEL_NAME_TRACE=\\\"trace\\\" -DSPDLOG_LEVEL_NAME_WARNING=\\\"warning\\\" -I/home/jfa/code/projects/samegame/src -I/home/jfa/code/projects/samegame/build/_deps/spdlog-src/include -O3 -DNDEBUG -std=gnu++20 -o CMakeFiles/sg_mcts.dir/src/mctstree.cpp.o -c /home/jfa/code/projects/samegame/src/mctstree.cpp",
+  "file": "/home/jfa/code/projects/samegame/src/mctstree.cpp"
+},
+{
+  "directory": "/home/jfa/code/projects/samegame/build",
+  "command": "/usr/bin/c++ -DSPDLOG_COMPILED_LIB -DSPDLOG_LEVEL_NAME_CRITICAL=\\\"critical\\\" -DSPDLOG_LEVEL_NAME_DEBUG=\\\"debug\\\" -DSPDLOG_LEVEL_NAME_ERROR=\\\"error\\\" -DSPDLOG_LEVEL_NAME_INFO=\\\"info\\\" -DSPDLOG_LEVEL_NAME_OFF=\\\"off\\\" -DSPDLOG_LEVEL_NAME_TRACE=\\\"trace\\\" -DSPDLOG_LEVEL_NAME_WARNING=\\\"warning\\\" -I/home/jfa/code/projects/samegame/src -I/home/jfa/code/projects/samegame/build/_deps/spdlog-src/include -O3 -DNDEBUG -std=gnu++20 -o CMakeFiles/sg_mcts.dir/src/mcts.cpp.o -c /home/jfa/code/projects/samegame/src/mcts.cpp",
+  "file": "/home/jfa/code/projects/samegame/src/mcts.cpp"
+},
+{
+  "directory": "/home/jfa/code/projects/samegame/build",
+  "command": "/usr/bin/c++ -DSPDLOG_COMPILED_LIB -DSPDLOG_LEVEL_NAME_CRITICAL=\\\"critical\\\" -DSPDLOG_LEVEL_NAME_DEBUG=\\\"debug\\\" -DSPDLOG_LEVEL_NAME_ERROR=\\\"error\\\" -DSPDLOG_LEVEL_NAME_INFO=\\\"info\\\" -DSPDLOG_LEVEL_NAME_OFF=\\\"off\\\" -DSPDLOG_LEVEL_NAME_TRACE=\\\"trace\\\" -DSPDLOG_LEVEL_NAME_WARNING=\\\"warning\\\" -I/home/jfa/code/projects/samegame/data -I/home/jfa/code/projects/samegame/src -I/home/jfa/code/projects/samegame/build/_deps/spdlog-src/include -O3 -DNDEBUG -std=gnu++20 -o CMakeFiles/display_clusters.dir/tests/display_clusters.cpp.o -c /home/jfa/code/projects/samegame/tests/display_clusters.cpp",
   "file": "/home/jfa/code/projects/samegame/tests/display_clusters.cpp"
 },
 {
   "directory": "/home/jfa/code/projects/samegame/build",
-  "command": "/usr/bin/clang++ -DSPDLOG_COMPILED_LIB -I/home/jfa/code/projects/samegame/src -I/home/jfa/code/projects/samegame/include -I/home/jfa/code/projects/samegame/data  -Wall -g -std=gnu++2a -o CMakeFiles/test_clusters.dir/src/mcts.cpp.o -c /home/jfa/code/projects/samegame/src/mcts.cpp",
-  "file": "/home/jfa/code/projects/samegame/src/mcts.cpp"
+  "command": "/usr/bin/c++ -DSPDLOG_COMPILED_LIB -DSPDLOG_LEVEL_NAME_CRITICAL=\\\"critical\\\" -DSPDLOG_LEVEL_NAME_DEBUG=\\\"debug\\\" -DSPDLOG_LEVEL_NAME_ERROR=\\\"error\\\" -DSPDLOG_LEVEL_NAME_INFO=\\\"info\\\" -DSPDLOG_LEVEL_NAME_OFF=\\\"off\\\" -DSPDLOG_LEVEL_NAME_TRACE=\\\"trace\\\" -DSPDLOG_LEVEL_NAME_WARNING=\\\"warning\\\" -I/home/jfa/code/projects/samegame/data -I/home/jfa/code/projects/samegame/src -I/home/jfa/code/projects/samegame/build/_deps/spdlog-src/include -O3 -DNDEBUG -std=gnu++20 -o CMakeFiles/test_random_simulation_toconsole.dir/tests/test_random_simulation_toconsole.cpp.o -c /home/jfa/code/projects/samegame/tests/test_random_simulation_toconsole.cpp",
+  "file": "/home/jfa/code/projects/samegame/tests/test_random_simulation_toconsole.cpp"
 },
 {
   "directory": "/home/jfa/code/projects/samegame/build",
-  "command": "/usr/bin/clang++ -DSPDLOG_COMPILED_LIB -I/home/jfa/code/projects/samegame/src -I/home/jfa/code/projects/samegame/include -I/home/jfa/code/projects/samegame/data  -Wall -g -std=gnu++2a -o CMakeFiles/test_clusters.dir/src/samegame.cpp.o -c /home/jfa/code/projects/samegame/src/samegame.cpp",
-  "file": "/home/jfa/code/projects/samegame/src/samegame.cpp"
+  "command": "/usr/bin/c++ -DSPDLOG_COMPILED_LIB -DSPDLOG_LEVEL_NAME_CRITICAL=\\\"critical\\\" -DSPDLOG_LEVEL_NAME_DEBUG=\\\"debug\\\" -DSPDLOG_LEVEL_NAME_ERROR=\\\"error\\\" -DSPDLOG_LEVEL_NAME_INFO=\\\"info\\\" -DSPDLOG_LEVEL_NAME_OFF=\\\"off\\\" -DSPDLOG_LEVEL_NAME_TRACE=\\\"trace\\\" -DSPDLOG_LEVEL_NAME_WARNING=\\\"warning\\\" -I/home/jfa/code/projects/samegame/src -I/home/jfa/code/projects/samegame/build/_deps/spdlog-src/include -isystem /home/jfa/code/projects/samegame/build/_deps/googletest-src/googletest/include -isystem /home/jfa/code/projects/samegame/build/_deps/googletest-src/googletest -O3 -DNDEBUG -std=gnu++20 -o CMakeFiles/mcts_tests.dir/src/tests/mcts_tests.cc.o -c /home/jfa/code/projects/samegame/src/tests/mcts_tests.cc",
+  "file": "/home/jfa/code/projects/samegame/src/tests/mcts_tests.cc"
 },
 {
   "directory": "/home/jfa/code/projects/samegame/build",
-  "command": "/usr/bin/clang++ -DSPDLOG_COMPILED_LIB -I/home/jfa/code/projects/samegame/src -I/home/jfa/code/projects/samegame/include -I/home/jfa/code/projects/samegame/data  -Wall -g -std=gnu++2a -o CMakeFiles/test_random_simulation.dir/tests/test_random_simulation.cpp.o -c /home/jfa/code/projects/samegame/tests/test_random_simulation.cpp",
-  "file": "/home/jfa/code/projects/samegame/tests/test_random_simulation.cpp"
+  "command": "/usr/bin/c++ -DSPDLOG_COMPILED_LIB -DSPDLOG_LEVEL_NAME_CRITICAL=\\\"critical\\\" -DSPDLOG_LEVEL_NAME_DEBUG=\\\"debug\\\" -DSPDLOG_LEVEL_NAME_ERROR=\\\"error\\\" -DSPDLOG_LEVEL_NAME_INFO=\\\"info\\\" -DSPDLOG_LEVEL_NAME_OFF=\\\"off\\\" -DSPDLOG_LEVEL_NAME_TRACE=\\\"trace\\\" -DSPDLOG_LEVEL_NAME_WARNING=\\\"warning\\\" -I/home/jfa/code/projects/samegame/src -I/home/jfa/code/projects/samegame/build/_deps/spdlog-src/include -isystem /home/jfa/code/projects/samegame/build/_deps/googletest-src/googletest/include -isystem /home/jfa/code/projects/samegame/build/_deps/googletest-src/googletest -O3 -DNDEBUG -std=gnu++20 -o CMakeFiles/mcts_tests.dir/src/tests/mctstree_tests.cc.o -c /home/jfa/code/projects/samegame/src/tests/mctstree_tests.cc",
+  "file": "/home/jfa/code/projects/samegame/src/tests/mctstree_tests.cc"
 },
 {
   "directory": "/home/jfa/code/projects/samegame/build",
-  "command": "/usr/bin/clang++ -DSPDLOG_COMPILED_LIB -I/home/jfa/code/projects/samegame/src -I/home/jfa/code/projects/samegame/include -I/home/jfa/code/projects/samegame/data  -Wall -g -std=gnu++2a -o CMakeFiles/test_random_simulation.dir/src/mcts.cpp.o -c /home/jfa/code/projects/samegame/src/mcts.cpp",
-  "file": "/home/jfa/code/projects/samegame/src/mcts.cpp"
+  "command": "/usr/bin/c++ -DSPDLOG_COMPILED_LIB -DSPDLOG_LEVEL_NAME_CRITICAL=\\\"critical\\\" -DSPDLOG_LEVEL_NAME_DEBUG=\\\"debug\\\" -DSPDLOG_LEVEL_NAME_ERROR=\\\"error\\\" -DSPDLOG_LEVEL_NAME_INFO=\\\"info\\\" -DSPDLOG_LEVEL_NAME_OFF=\\\"off\\\" -DSPDLOG_LEVEL_NAME_TRACE=\\\"trace\\\" -DSPDLOG_LEVEL_NAME_WARNING=\\\"warning\\\" -I/home/jfa/code/projects/samegame/data -I/home/jfa/code/projects/samegame/src -I/home/jfa/code/projects/samegame/build/_deps/spdlog-src/include -O3 -DNDEBUG -std=gnu++20 -o CMakeFiles/test_human_play.dir/tests/test_humanplay.cpp.o -c /home/jfa/code/projects/samegame/tests/test_humanplay.cpp",
+  "file": "/home/jfa/code/projects/samegame/tests/test_humanplay.cpp"
 },
 {
   "directory": "/home/jfa/code/projects/samegame/build",
-  "command": "/usr/bin/clang++ -DSPDLOG_COMPILED_LIB -I/home/jfa/code/projects/samegame/src -I/home/jfa/code/projects/samegame/include -I/home/jfa/code/projects/samegame/data  -Wall -g -std=gnu++2a -o CMakeFiles/test_random_simulation.dir/src/samegame.cpp.o -c /home/jfa/code/projects/samegame/src/samegame.cpp",
-  "file": "/home/jfa/code/projects/samegame/src/samegame.cpp"
+  "command": "/usr/bin/c++ -DSPDLOG_COMPILED_LIB -DSPDLOG_LEVEL_NAME_CRITICAL=\\\"critical\\\" -DSPDLOG_LEVEL_NAME_DEBUG=\\\"debug\\\" -DSPDLOG_LEVEL_NAME_ERROR=\\\"error\\\" -DSPDLOG_LEVEL_NAME_INFO=\\\"info\\\" -DSPDLOG_LEVEL_NAME_OFF=\\\"off\\\" -DSPDLOG_LEVEL_NAME_TRACE=\\\"trace\\\" -DSPDLOG_LEVEL_NAME_WARNING=\\\"warning\\\" -I/home/jfa/code/projects/samegame/data -I/home/jfa/code/projects/samegame/src -I/home/jfa/code/projects/samegame/build/_deps/spdlog-src/include -O3 -DNDEBUG -std=gnu++20 -o CMakeFiles/test_random_simulation_tologs.dir/tests/test_random_simulation_tologs.cpp.o -c /home/jfa/code/projects/samegame/tests/test_random_simulation_tologs.cpp",
+  "file": "/home/jfa/code/projects/samegame/tests/test_random_simulation_tologs.cpp"
 },
 {
   "directory": "/home/jfa/code/projects/samegame/build",
-  "command": "/usr/bin/clang++ -DSPDLOG_COMPILED_LIB -I/home/jfa/code/projects/samegame/src -I/home/jfa/code/projects/samegame/include -I/home/jfa/code/projects/samegame/data  -Wall -g -std=gnu++2a -o CMakeFiles/test_pv.dir/tests/test_pv.cpp.o -c /home/jfa/code/projects/samegame/tests/test_pv.cpp",
+  "command": "/usr/bin/c++ -DSPDLOG_COMPILED_LIB -DSPDLOG_LEVEL_NAME_CRITICAL=\\\"critical\\\" -DSPDLOG_LEVEL_NAME_DEBUG=\\\"debug\\\" -DSPDLOG_LEVEL_NAME_ERROR=\\\"error\\\" -DSPDLOG_LEVEL_NAME_INFO=\\\"info\\\" -DSPDLOG_LEVEL_NAME_OFF=\\\"off\\\" -DSPDLOG_LEVEL_NAME_TRACE=\\\"trace\\\" -DSPDLOG_LEVEL_NAME_WARNING=\\\"warning\\\" -I/home/jfa/code/projects/samegame/data -I/home/jfa/code/projects/samegame/src -I/home/jfa/code/projects/samegame/build/_deps/spdlog-src/include -O3 -DNDEBUG -std=gnu++20 -o CMakeFiles/test_pv.dir/tests/test_pv.cpp.o -c /home/jfa/code/projects/samegame/tests/test_pv.cpp",
   "file": "/home/jfa/code/projects/samegame/tests/test_pv.cpp"
 },
 {
   "directory": "/home/jfa/code/projects/samegame/build",
-  "command": "/usr/bin/clang++ -DSPDLOG_COMPILED_LIB -I/home/jfa/code/projects/samegame/src -I/home/jfa/code/projects/samegame/include -I/home/jfa/code/projects/samegame/data  -Wall -g -std=gnu++2a -o CMakeFiles/test_pv.dir/src/mcts.cpp.o -c /home/jfa/code/projects/samegame/src/mcts.cpp",
-  "file": "/home/jfa/code/projects/samegame/src/mcts.cpp"
+  "command": "/usr/bin/c++ -DSPDLOG_COMPILED_LIB -DSPDLOG_LEVEL_NAME_CRITICAL=\\\"critical\\\" -DSPDLOG_LEVEL_NAME_DEBUG=\\\"debug\\\" -DSPDLOG_LEVEL_NAME_ERROR=\\\"error\\\" -DSPDLOG_LEVEL_NAME_INFO=\\\"info\\\" -DSPDLOG_LEVEL_NAME_OFF=\\\"off\\\" -DSPDLOG_LEVEL_NAME_TRACE=\\\"trace\\\" -DSPDLOG_LEVEL_NAME_WARNING=\\\"warning\\\" -I/home/jfa/code/projects/samegame/src -I/home/jfa/code/projects/samegame/build/_deps/spdlog-src/include -isystem /home/jfa/code/projects/samegame/build/_deps/googletest-src/googletest/include -isystem /home/jfa/code/projects/samegame/build/_deps/googletest-src/googletest -O3 -DNDEBUG -std=gnu++20 -o CMakeFiles/randutil_tests.dir/src/tests/randutil_tests.cc.o -c /home/jfa/code/projects/samegame/src/tests/randutil_tests.cc",
+  "file": "/home/jfa/code/projects/samegame/src/tests/randutil_tests.cc"
 },
 {
   "directory": "/home/jfa/code/projects/samegame/build",
-  "command": "/usr/bin/clang++ -DSPDLOG_COMPILED_LIB -I/home/jfa/code/projects/samegame/src -I/home/jfa/code/projects/samegame/include -I/home/jfa/code/projects/samegame/data  -Wall -g -std=gnu++2a -o CMakeFiles/test_pv.dir/src/samegame.cpp.o -c /home/jfa/code/projects/samegame/src/samegame.cpp",
-  "file": "/home/jfa/code/projects/samegame/src/samegame.cpp"
+  "command": "/usr/bin/c++ -DSPDLOG_COMPILED_LIB -DSPDLOG_LEVEL_NAME_CRITICAL=\\\"critical\\\" -DSPDLOG_LEVEL_NAME_DEBUG=\\\"debug\\\" -DSPDLOG_LEVEL_NAME_ERROR=\\\"error\\\" -DSPDLOG_LEVEL_NAME_INFO=\\\"info\\\" -DSPDLOG_LEVEL_NAME_OFF=\\\"off\\\" -DSPDLOG_LEVEL_NAME_TRACE=\\\"trace\\\" -DSPDLOG_LEVEL_NAME_WARNING=\\\"warning\\\" -I/home/jfa/code/projects/samegame/src -I/home/jfa/code/projects/samegame/build/_deps/spdlog-src/include -isystem /home/jfa/code/projects/samegame/build/_deps/googletest-src/googletest/include -isystem /home/jfa/code/projects/samegame/build/_deps/googletest-src/googletest -O3 -DNDEBUG -std=gnu++20 -o CMakeFiles/sg_tests.dir/src/tests/samegame_tests.cc.o -c /home/jfa/code/projects/samegame/src/tests/samegame_tests.cc",
+  "file": "/home/jfa/code/projects/samegame/src/tests/samegame_tests.cc"
 },
 {
   "directory": "/home/jfa/code/projects/samegame/build",
-  "command": "/usr/bin/clang++ -DSPDLOG_COMPILED_LIB -I/home/jfa/code/projects/samegame/src -I/home/jfa/code/projects/samegame/include -I/home/jfa/code/projects/samegame/data  -Wall -g -std=gnu++2a -o CMakeFiles/test_avg_val.dir/tests/test_avg_val_time.cpp.o -c /home/jfa/code/projects/samegame/tests/test_avg_val_time.cpp",
-  "file": "/home/jfa/code/projects/samegame/tests/test_avg_val_time.cpp"
+  "command": "/usr/bin/c++ -DSPDLOG_COMPILED_LIB -DSPDLOG_LEVEL_NAME_CRITICAL=\\\"critical\\\" -DSPDLOG_LEVEL_NAME_DEBUG=\\\"debug\\\" -DSPDLOG_LEVEL_NAME_ERROR=\\\"error\\\" -DSPDLOG_LEVEL_NAME_INFO=\\\"info\\\" -DSPDLOG_LEVEL_NAME_OFF=\\\"off\\\" -DSPDLOG_LEVEL_NAME_TRACE=\\\"trace\\\" -DSPDLOG_LEVEL_NAME_WARNING=\\\"warning\\\" -I/home/jfa/code/projects/samegame/src -I/home/jfa/code/projects/samegame/build/_deps/spdlog-src/include -isystem /home/jfa/code/projects/samegame/build/_deps/googletest-src/googletest/include -isystem /home/jfa/code/projects/samegame/build/_deps/googletest-src/googletest -O3 -DNDEBUG -std=gnu++20 -o CMakeFiles/sg_tests.dir/src/tests/dsu_tests.cc.o -c /home/jfa/code/projects/samegame/src/tests/dsu_tests.cc",
+  "file": "/home/jfa/code/projects/samegame/src/tests/dsu_tests.cc"
 },
 {
   "directory": "/home/jfa/code/projects/samegame/build",
-  "command": "/usr/bin/clang++ -DSPDLOG_COMPILED_LIB -I/home/jfa/code/projects/samegame/src -I/home/jfa/code/projects/samegame/include -I/home/jfa/code/projects/samegame/data  -Wall -g -std=gnu++2a -o CMakeFiles/test_avg_val.dir/src/mcts.cpp.o -c /home/jfa/code/projects/samegame/src/mcts.cpp",
-  "file": "/home/jfa/code/projects/samegame/src/mcts.cpp"
+  "command": "/usr/bin/c++ -DSPDLOG_COMPILED_LIB -DSPDLOG_LEVEL_NAME_CRITICAL=\\\"critical\\\" -DSPDLOG_LEVEL_NAME_DEBUG=\\\"debug\\\" -DSPDLOG_LEVEL_NAME_ERROR=\\\"error\\\" -DSPDLOG_LEVEL_NAME_INFO=\\\"info\\\" -DSPDLOG_LEVEL_NAME_OFF=\\\"off\\\" -DSPDLOG_LEVEL_NAME_TRACE=\\\"trace\\\" -DSPDLOG_LEVEL_NAME_WARNING=\\\"warning\\\" -I/home/jfa/code/projects/samegame/src -I/home/jfa/code/projects/samegame/build/_deps/spdlog-src/include -isystem /home/jfa/code/projects/samegame/build/_deps/googletest-src/googletest/include -isystem /home/jfa/code/projects/samegame/build/_deps/googletest-src/googletest -O3 -DNDEBUG -std=gnu++20 -o CMakeFiles/sg_tests.dir/src/tests/zobrist_tests.cc.o -c /home/jfa/code/projects/samegame/src/tests/zobrist_tests.cc",
+  "file": "/home/jfa/code/projects/samegame/src/tests/zobrist_tests.cc"
 },
 {
-  "directory": "/home/jfa/code/projects/samegame/build",
-  "command": "/usr/bin/clang++ -DSPDLOG_COMPILED_LIB -I/home/jfa/code/projects/samegame/src -I/home/jfa/code/projects/samegame/include -I/home/jfa/code/projects/samegame/data  -Wall -g -std=gnu++2a -o CMakeFiles/test_avg_val.dir/src/samegame.cpp.o -c /home/jfa/code/projects/samegame/src/samegame.cpp",
-  "file": "/home/jfa/code/projects/samegame/src/samegame.cpp"
+  "directory": "/home/jfa/code/projects/samegame/build/_deps/googletest-build/googlemock",
+  "command": "/usr/bin/c++  -I/home/jfa/code/projects/samegame/build/_deps/googletest-src/googlemock/include -I/home/jfa/code/projects/samegame/build/_deps/googletest-src/googlemock -isystem /home/jfa/code/projects/samegame/build/_deps/googletest-src/googletest/include -isystem /home/jfa/code/projects/samegame/build/_deps/googletest-src/googletest -O3 -DNDEBUG -Wall -Wshadow -Werror -Wno-error=dangling-else -DGTEST_HAS_PTHREAD=1 -fexceptions -Wextra -Wno-unused-parameter -Wno-missing-field-initializers -std=c++11 -o CMakeFiles/gmock.dir/src/gmock-all.cc.o -c /home/jfa/code/projects/samegame/build/_deps/googletest-src/googlemock/src/gmock-all.cc",
+  "file": "/home/jfa/code/projects/samegame/build/_deps/googletest-src/googlemock/src/gmock-all.cc"
 },
 {
-  "directory": "/home/jfa/code/projects/samegame/build",
-  "command": "/usr/bin/clang++ -DSPDLOG_COMPILED_LIB -I/home/jfa/code/projects/samegame/src -I/home/jfa/code/projects/samegame/include -I/home/jfa/code/projects/samegame/data  -Wall -g -std=gnu++2a -o CMakeFiles/main.dir/main.cpp.o -c /home/jfa/code/projects/samegame/main.cpp",
-  "file": "/home/jfa/code/projects/samegame/main.cpp"
+  "directory": "/home/jfa/code/projects/samegame/build/_deps/googletest-build/googlemock",
+  "command": "/usr/bin/c++  -isystem /home/jfa/code/projects/samegame/build/_deps/googletest-src/googlemock/include -isystem /home/jfa/code/projects/samegame/build/_deps/googletest-src/googlemock -isystem /home/jfa/code/projects/samegame/build/_deps/googletest-src/googletest/include -isystem /home/jfa/code/projects/samegame/build/_deps/googletest-src/googletest -O3 -DNDEBUG -Wall -Wshadow -Werror -Wno-error=dangling-else -DGTEST_HAS_PTHREAD=1 -fexceptions -Wextra -Wno-unused-parameter -Wno-missing-field-initializers -std=c++11 -o CMakeFiles/gmock_main.dir/src/gmock_main.cc.o -c /home/jfa/code/projects/samegame/build/_deps/googletest-src/googlemock/src/gmock_main.cc",
+  "file": "/home/jfa/code/projects/samegame/build/_deps/googletest-src/googlemock/src/gmock_main.cc"
 },
 {
-  "directory": "/home/jfa/code/projects/samegame/build",
-  "command": "/usr/bin/clang++ -DSPDLOG_COMPILED_LIB -I/home/jfa/code/projects/samegame/src -I/home/jfa/code/projects/samegame/include -I/home/jfa/code/projects/samegame/data  -Wall -g -std=gnu++2a -o CMakeFiles/main.dir/src/mcts.cpp.o -c /home/jfa/code/projects/samegame/src/mcts.cpp",
-  "file": "/home/jfa/code/projects/samegame/src/mcts.cpp"
+  "directory": "/home/jfa/code/projects/samegame/build/_deps/googletest-build/googletest",
+  "command": "/usr/bin/c++  -I/home/jfa/code/projects/samegame/build/_deps/googletest-src/googletest/include -I/home/jfa/code/projects/samegame/build/_deps/googletest-src/googletest -O3 -DNDEBUG -Wall -Wshadow -Werror -Wno-error=dangling-else -DGTEST_HAS_PTHREAD=1 -fexceptions -Wextra -Wno-unused-parameter -Wno-missing-field-initializers -std=c++11 -o CMakeFiles/gtest.dir/src/gtest-all.cc.o -c /home/jfa/code/projects/samegame/build/_deps/googletest-src/googletest/src/gtest-all.cc",
+  "file": "/home/jfa/code/projects/samegame/build/_deps/googletest-src/googletest/src/gtest-all.cc"
 },
 {
-  "directory": "/home/jfa/code/projects/samegame/build",
-  "command": "/usr/bin/clang++ -DSPDLOG_COMPILED_LIB -I/home/jfa/code/projects/samegame/src -I/home/jfa/code/projects/samegame/include -I/home/jfa/code/projects/samegame/data  -Wall -g -std=gnu++2a -o CMakeFiles/main.dir/src/samegame.cpp.o -c /home/jfa/code/projects/samegame/src/samegame.cpp",
-  "file": "/home/jfa/code/projects/samegame/src/samegame.cpp"
+  "directory": "/home/jfa/code/projects/samegame/build/_deps/googletest-build/googletest",
+  "command": "/usr/bin/c++  -isystem /home/jfa/code/projects/samegame/build/_deps/googletest-src/googletest/include -isystem /home/jfa/code/projects/samegame/build/_deps/googletest-src/googletest -O3 -DNDEBUG -Wall -Wshadow -Werror -Wno-error=dangling-else -DGTEST_HAS_PTHREAD=1 -fexceptions -Wextra -Wno-unused-parameter -Wno-missing-field-initializers -std=c++11 -o CMakeFiles/gtest_main.dir/src/gtest_main.cc.o -c /home/jfa/code/projects/samegame/build/_deps/googletest-src/googletest/src/gtest_main.cc",
+  "file": "/home/jfa/code/projects/samegame/build/_deps/googletest-src/googletest/src/gtest_main.cc"
+},
+{
+  "directory": "/home/jfa/code/projects/samegame/build/_deps/spdlog-build",
+  "command": "/usr/bin/c++ -DSPDLOG_COMPILED_LIB -DSPDLOG_LEVEL_NAME_CRITICAL=\\\"critical\\\" -DSPDLOG_LEVEL_NAME_DEBUG=\\\"debug\\\" -DSPDLOG_LEVEL_NAME_ERROR=\\\"error\\\" -DSPDLOG_LEVEL_NAME_INFO=\\\"info\\\" -DSPDLOG_LEVEL_NAME_OFF=\\\"off\\\" -DSPDLOG_LEVEL_NAME_TRACE=\\\"trace\\\" -DSPDLOG_LEVEL_NAME_WARNING=\\\"warning\\\" -I/home/jfa/code/projects/samegame/build/_deps/spdlog-src/include -O3 -DNDEBUG -std=c++20 -o CMakeFiles/spdlog.dir/src/spdlog.cpp.o -c /home/jfa/code/projects/samegame/build/_deps/spdlog-src/src/spdlog.cpp",
+  "file": "/home/jfa/code/projects/samegame/build/_deps/spdlog-src/src/spdlog.cpp"
+},
+{
+  "directory": "/home/jfa/code/projects/samegame/build/_deps/spdlog-build",
+  "command": "/usr/bin/c++ -DSPDLOG_COMPILED_LIB -DSPDLOG_LEVEL_NAME_CRITICAL=\\\"critical\\\" -DSPDLOG_LEVEL_NAME_DEBUG=\\\"debug\\\" -DSPDLOG_LEVEL_NAME_ERROR=\\\"error\\\" -DSPDLOG_LEVEL_NAME_INFO=\\\"info\\\" -DSPDLOG_LEVEL_NAME_OFF=\\\"off\\\" -DSPDLOG_LEVEL_NAME_TRACE=\\\"trace\\\" -DSPDLOG_LEVEL_NAME_WARNING=\\\"warning\\\" -I/home/jfa/code/projects/samegame/build/_deps/spdlog-src/include -O3 -DNDEBUG -std=c++20 -o CMakeFiles/spdlog.dir/src/stdout_sinks.cpp.o -c /home/jfa/code/projects/samegame/build/_deps/spdlog-src/src/stdout_sinks.cpp",
+  "file": "/home/jfa/code/projects/samegame/build/_deps/spdlog-src/src/stdout_sinks.cpp"
+},
+{
+  "directory": "/home/jfa/code/projects/samegame/build/_deps/spdlog-build",
+  "command": "/usr/bin/c++ -DSPDLOG_COMPILED_LIB -DSPDLOG_LEVEL_NAME_CRITICAL=\\\"critical\\\" -DSPDLOG_LEVEL_NAME_DEBUG=\\\"debug\\\" -DSPDLOG_LEVEL_NAME_ERROR=\\\"error\\\" -DSPDLOG_LEVEL_NAME_INFO=\\\"info\\\" -DSPDLOG_LEVEL_NAME_OFF=\\\"off\\\" -DSPDLOG_LEVEL_NAME_TRACE=\\\"trace\\\" -DSPDLOG_LEVEL_NAME_WARNING=\\\"warning\\\" -I/home/jfa/code/projects/samegame/build/_deps/spdlog-src/include -O3 -DNDEBUG -std=c++20 -o CMakeFiles/spdlog.dir/src/color_sinks.cpp.o -c /home/jfa/code/projects/samegame/build/_deps/spdlog-src/src/color_sinks.cpp",
+  "file": "/home/jfa/code/projects/samegame/build/_deps/spdlog-src/src/color_sinks.cpp"
+},
+{
+  "directory": "/home/jfa/code/projects/samegame/build/_deps/spdlog-build",
+  "command": "/usr/bin/c++ -DSPDLOG_COMPILED_LIB -DSPDLOG_LEVEL_NAME_CRITICAL=\\\"critical\\\" -DSPDLOG_LEVEL_NAME_DEBUG=\\\"debug\\\" -DSPDLOG_LEVEL_NAME_ERROR=\\\"error\\\" -DSPDLOG_LEVEL_NAME_INFO=\\\"info\\\" -DSPDLOG_LEVEL_NAME_OFF=\\\"off\\\" -DSPDLOG_LEVEL_NAME_TRACE=\\\"trace\\\" -DSPDLOG_LEVEL_NAME_WARNING=\\\"warning\\\" -I/home/jfa/code/projects/samegame/build/_deps/spdlog-src/include -O3 -DNDEBUG -std=c++20 -o CMakeFiles/spdlog.dir/src/file_sinks.cpp.o -c /home/jfa/code/projects/samegame/build/_deps/spdlog-src/src/file_sinks.cpp",
+  "file": "/home/jfa/code/projects/samegame/build/_deps/spdlog-src/src/file_sinks.cpp"
+},
+{
+  "directory": "/home/jfa/code/projects/samegame/build/_deps/spdlog-build",
+  "command": "/usr/bin/c++ -DSPDLOG_COMPILED_LIB -DSPDLOG_LEVEL_NAME_CRITICAL=\\\"critical\\\" -DSPDLOG_LEVEL_NAME_DEBUG=\\\"debug\\\" -DSPDLOG_LEVEL_NAME_ERROR=\\\"error\\\" -DSPDLOG_LEVEL_NAME_INFO=\\\"info\\\" -DSPDLOG_LEVEL_NAME_OFF=\\\"off\\\" -DSPDLOG_LEVEL_NAME_TRACE=\\\"trace\\\" -DSPDLOG_LEVEL_NAME_WARNING=\\\"warning\\\" -I/home/jfa/code/projects/samegame/build/_deps/spdlog-src/include -O3 -DNDEBUG -std=c++20 -o CMakeFiles/spdlog.dir/src/async.cpp.o -c /home/jfa/code/projects/samegame/build/_deps/spdlog-src/src/async.cpp",
+  "file": "/home/jfa/code/projects/samegame/build/_deps/spdlog-src/src/async.cpp"
+},
+{
+  "directory": "/home/jfa/code/projects/samegame/build/_deps/spdlog-build",
+  "command": "/usr/bin/c++ -DSPDLOG_COMPILED_LIB -DSPDLOG_LEVEL_NAME_CRITICAL=\\\"critical\\\" -DSPDLOG_LEVEL_NAME_DEBUG=\\\"debug\\\" -DSPDLOG_LEVEL_NAME_ERROR=\\\"error\\\" -DSPDLOG_LEVEL_NAME_INFO=\\\"info\\\" -DSPDLOG_LEVEL_NAME_OFF=\\\"off\\\" -DSPDLOG_LEVEL_NAME_TRACE=\\\"trace\\\" -DSPDLOG_LEVEL_NAME_WARNING=\\\"warning\\\" -I/home/jfa/code/projects/samegame/build/_deps/spdlog-src/include -O3 -DNDEBUG -std=c++20 -o CMakeFiles/spdlog.dir/src/cfg.cpp.o -c /home/jfa/code/projects/samegame/build/_deps/spdlog-src/src/cfg.cpp",
+  "file": "/home/jfa/code/projects/samegame/build/_deps/spdlog-src/src/cfg.cpp"
+},
+{
+  "directory": "/home/jfa/code/projects/samegame/build/_deps/spdlog-build",
+  "command": "/usr/bin/c++ -DSPDLOG_COMPILED_LIB -DSPDLOG_LEVEL_NAME_CRITICAL=\\\"critical\\\" -DSPDLOG_LEVEL_NAME_DEBUG=\\\"debug\\\" -DSPDLOG_LEVEL_NAME_ERROR=\\\"error\\\" -DSPDLOG_LEVEL_NAME_INFO=\\\"info\\\" -DSPDLOG_LEVEL_NAME_OFF=\\\"off\\\" -DSPDLOG_LEVEL_NAME_TRACE=\\\"trace\\\" -DSPDLOG_LEVEL_NAME_WARNING=\\\"warning\\\" -I/home/jfa/code/projects/samegame/build/_deps/spdlog-src/include -O3 -DNDEBUG -std=c++20 -o CMakeFiles/spdlog.dir/src/fmt.cpp.o -c /home/jfa/code/projects/samegame/build/_deps/spdlog-src/src/fmt.cpp",
+  "file": "/home/jfa/code/projects/samegame/build/_deps/spdlog-src/src/fmt.cpp"
 }
 ]

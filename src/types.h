@@ -48,7 +48,10 @@ struct ClusterData {
     size_t size  { 0 };
 };
 using ClusterDataVec = std::vector<ClusterData>;
-
+inline bool operator==(const ClusterData& a, const ClusterData& b)
+{
+    return a.rep == b.rep && a.color == b.color && a.size == b.size;
+}
 enum class Output {
     CONSOLE,
     FILE
@@ -60,6 +63,11 @@ using ActionVec = ClusterDataVec;
 } // namespace sg
 
 namespace mcts {
+
+auto static constexpr MAX_DEPTH    = 128;
+auto static constexpr MAX_NODES    = 16384;
+auto static constexpr MAX_CHILDREN = 32;
+auto static constexpr DEFAULT_EXPLORATION_CST = 0.7;
 
 typedef double Reward;
 using sg::Action;

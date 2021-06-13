@@ -46,14 +46,15 @@ set(DATA_DIR ${PROJECT_SOURCE_DIR}/data)
 set(SRC_DIR ${PROJECT_SOURCE_DIR}/src)
 
 set( sg_SOURCES
-   ${SRC_DIR}/samegame.cpp
-   ${SRC_DIR}/clusterhelper.cpp
-   ${SRC_DIR}/sghash.cpp
-   ${SRC_DIR}/display.cpp
-   )
+  ${SRC_DIR}/samegame.cpp
+  ${SRC_DIR}/clusterhelper.cpp
+  ${SRC_DIR}/sghash.cpp
+  ${SRC_DIR}/display.cpp
+  )
 set( mcts_SOURCES
-   ${SRC_DIR}/mcts.cpp
-   )
+  ${SRC_DIR}/mctstree.cpp
+  ${SRC_DIR}/mcts.cpp
+  )
 
 ######################################################
 # Main project targets                               #
@@ -122,10 +123,10 @@ add_executable(
 
 # The samegame implementation test files
 set( sg_tests_SOURCES
-   ${TEST_DIR}/samegame_tests.cc
-   ${TEST_DIR}/dsu_tests.cc
-   ${TEST_DIR}/zobrist_tests.cc
-   )
+  ${TEST_DIR}/samegame_tests.cc
+  ${TEST_DIR}/dsu_tests.cc
+  ${TEST_DIR}/zobrist_tests.cc
+  )
 add_executable(
   sg_tests
   ${sg_tests_SOURCES}
@@ -134,6 +135,7 @@ add_executable(
 # The mcts implementation test files
 set( mcts_tests_SOURCES
   ${TEST_DIR}/mcts_tests.cc
+  ${TEST_DIR}/mctstree_tests.cc
   )
 add_executable(
   mcts_tests

@@ -26,7 +26,7 @@ void output_pv(Agent& agent)
 
     assert(agent.current_node() == agent.root);
 
-    array<mcts::SearchData, MAX_PLY> pv { };
+    array<mcts::SearchData, MAX_DEPTH> pv { };
     int ply = 1;
 
     Node* node = agent.root;

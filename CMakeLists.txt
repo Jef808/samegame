@@ -80,10 +80,15 @@ add_executable(display_clusters tests/display_clusters.cpp)
 target_link_libraries(display_clusters sg spdlog::spdlog)
 target_include_directories(display_clusters PRIVATE ${DATA_DIR})
 
-# Test, benchmark and admire fast random simulations in the console
-add_executable(test_random_simulation tests/test_random_simulation.cpp)
-target_link_libraries(test_random_simulation sg_mcts spdlog::spdlog)
-target_include_directories(test_random_simulation PRIVATE ${DATA_DIR})
+# Admire fast random simulations in the console
+add_executable(test_random_simulation_toconsole tests/test_random_simulation_toconsole.cpp)
+target_link_libraries(test_random_simulation_toconsole sg_mcts spdlog::spdlog)
+target_include_directories(test_random_simulation_toconsole PRIVATE ${DATA_DIR})
+
+# Same as above but for fast executions with logs only.
+add_executable(test_random_simulation_tologs tests/test_random_simulation_tologs.cpp)
+target_link_libraries(test_random_simulation_tologs sg_mcts spdlog::spdlog)
+target_include_directories(test_random_simulation_tologs PRIVATE ${DATA_DIR})
 
 # Test / debug the main line taken by the mcts algorithm
 add_executable(test_pv tests/test_pv.cpp)
@@ -104,6 +109,7 @@ add_custom_target(log_clean rm ${PROJECT_SOURCE_DIR}/build/logs -r)
 #################################################################################
 # Automated tests                                                               #
 #################################################################################
+
 set( TEST_DIR ${SRC_DIR}/tests )
 
 enable_testing()
@@ -139,7 +145,6 @@ target_link_libraries( randutil_tests gtest_main spdlog::spdlog )
 target_include_directories( randutil_tests PRIVATE ${SRC_DIR} )
 target_link_libraries( sg_tests sg gtest_main spdlog::spdlog )
 target_link_libraries( mcts_tests sg_mcts gtest_main spdlog::spdlog )
-
 
 include( GoogleTest )
 gtest_discover_tests( sg_tests mcts_tests )

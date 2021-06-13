@@ -42,6 +42,7 @@ public:
   using ClusterData = ::sg::ClusterData;
 
   Agent(::sg::State&);
+  void init_data();
   void init_search();
 
   ClusterData MCTSBestActions();
@@ -80,8 +81,6 @@ public:
   Reward evaluate_terminal() const;
   Reward value_to_reward(double);
   double reward_to_value(Reward);
-
-  std::vector<Action> get_edges_from_root() const;
 
   // Use MinMax to evaluate and backpropagate when it is a 2players game.
   //const GameNbPlayers nb_players = GAME_1P;
@@ -134,6 +133,7 @@ struct Edge {
   int              val_best { 0 };
   Reward           reward_avg_visit { 0 };
   int              n_visits { 0 };
+  friend std::ostream& operator<<(std::ostream&, const Edge&);
 };
 
 struct Node {
@@ -144,6 +144,7 @@ struct Node {
   Edges            children { {} };
 
   Edges& children_list() { return children; }
+  friend std::ostream& operator<<(std::ostream&, const Node&);
 };
 
 inline bool operator==(const Edge& a, const Edge& b) {
@@ -153,9 +154,9 @@ inline bool operator==(const Node& a, const Node& b) {
   return a.key == b.key;
 }
 
-extern std::ostream& operator<<(std::ostream& _out, const Agent& agent);
-extern std::ostream& operator<<(std::ostream& _out, const Edge& edge);
-extern std::ostream& operator<<(std::ostream& _out, const Node& node);
+extern std::ostream& operator<<(std::ostream&, const Agent&);
+extern std::ostream& operator<<(std::ostream&, const Edge&);
+extern std::ostream& operator<<(std::ostream&, const Node&);
 
 typedef std::unordered_map<Key, Node> MCTSLookupTable;
 
@@ -163,5 +164,12 @@ extern MCTSLookupTable MCTS;
 
 
 } // namespace mcts
+
+// TODO: Only expose manipulation of `StateDescriptor` objects in the mcts interface.
+// Then instead of comparing keys explicitely, (re)define operator== and apply_action etc...
+// so that operations on StateDescriptor objects is simple and uniform.
+//
+// TODO: get_node and tree navigation etc... Nodes and Edges... should be in its own
+// templated class exposing a nice interface
 
 #endif // __MCTS_H_

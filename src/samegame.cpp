@@ -24,6 +24,7 @@ State::State(std::istream& _in, StateData& sd)
     : p_data(&sd)
 {
     clusters::input(_in, sd);
+    sd.key = key();
 }
 
 StateData State::clone_data() const
@@ -39,7 +40,6 @@ StateData& State::copy_data_to(StateData& _sd) const
 
 StateData& State::redirect_data_to(StateData& _sd)
 {
-    _sd = *p_data;
     p_data = &_sd;
     return _sd;
 }
@@ -74,6 +74,9 @@ bool key_uninitialized(const Grid& grid, Key key)
 
 Key State::key() const
 {
+    if (p_data->key != 0) {
+        return p_data->key;
+    }
     return p_data->key = zobrist::get_key(p_data->cells);
 }
 
@@ -104,6 +107,10 @@ bool State::is_empty() const
  */
 ClusterData State::apply_action(const ClusterData& cd, StateData& sd)
 {
+    if (p_data->cells[cd.rep] != cd.color) {
+        spdlog::warn("State::apply_action called with ClusterData of wrong color");
+        return ClusterData{ .rep = CELL_NONE, .color = Color::Empty, .size = 0 };
+    }
     copy_data_to(sd);
     sd.previous = p_data;
     p_data = &sd;

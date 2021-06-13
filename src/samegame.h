@@ -29,6 +29,7 @@ public:
     StateData& move_data_to(StateData&);
     StateData& redirect_data_to(StateData&);
     void copy_data_from(const StateData&);
+    StateData* pget_data() const;
     const StateData& data() const;
 
     ClusterDataVec valid_actions_data() const;

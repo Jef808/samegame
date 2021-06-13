@@ -89,7 +89,7 @@ enum class Color_codes : int {
         Cluster cluster = clusters::get_cluster(grid, cell);
         cluster.rep = cell;
         bool labels = true;
-        std::stringstream ss { "\n" };
+        std::stringstream ss { std::string("\n") };
 
         // For every row
         for (int y = 0; y < HEIGHT; ++y) {

@@ -61,3 +61,7 @@ private:
 inline constexpr Grid EMPTY_GRID {};
 
 } // namespace sg
+
+namespace std {
+    inline bool operator==(const sg::Grid& a, const sg::Grid& b) { return a.operator==(b); }
+}

@@ -276,7 +276,7 @@ void input(std::istream& _in, StateData& _sd)
     Color _color { Color::Empty };
     Grid& _grid = _sd.cells;
     _grid.n_empty_rows = { 0 };
-    //Key key = 0;
+
     bool row_empty { true };
 
     for (auto row = 0; row < HEIGHT; ++row) {

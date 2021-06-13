@@ -20,8 +20,6 @@ using namespace sg;
 
 namespace mcts {
 
-const Action ACTION_NONE = ClusterData();
-Edge   EDGE_NONE = { ClusterData{sg::CELL_NONE, sg::Color::Empty, 0}, 0, 0, 0, 0 };
 
 std::ostream& operator<<(std::ostream& _out, const mcts::Agent& agent) {
     return _out << Agent::debug_tree_stats(agent);
@@ -38,54 +36,26 @@ std::ostream& operator<<(std::ostream& _out, const ::mcts::Node& node) {
 //************************** Node Lookup Table****************************/
 
 MCTSLookupTable MCTS {};
-
-//Edge EDGE_NONE = {};
-
-// get_node queries the Lookup Table until it finds the node with given position,
-// or creates a new entry in case it doesn't find it.
-// Node* get_node(const State& state)
-// {
-//     Key state_key = state.key();
-
-
-//     auto node_it = MCTS.find(state_key);
-//     if (node_it != MCTS.end())
-//         return &(node_it->second);
-
-//     // Insert the new node in the Hash table if it wasn't found.
-
-//     new_node.key = state_key;
-//     Node new_node { .key = state.key(), };
-//     //new_node.parent = state.p_data->parent_action;    // We've set actions[0] to ACTION_NONE so okay
-
-//     auto new_node_it = MCTS.insert(std::make_pair(state_key, new_node)).first;
-
-//     return &(new_node_it->second);
-// }
+const Action ACTION_NONE = ClusterData();
+Edge EDGE_NONE = Edge();
 
 
 Node* get_node(const sg::State& state)
 {
-    Node new_node { .key = state.key(), };
-    auto [it, success] = MCTS.insert(std::make_pair(new_node.key, new_node));
+    Key state_key = state.key();
 
-    return &it->second;
+    //auto [it, success] = MCTS.insert(std::make_pair(new_node.key, new_node));
 
-    // auto node_it = MCTS.find(state_key);
-    // if (node_it != MCTS.end())
-    //     return &(node_it->second);
+    auto node_it = MCTS.find(state_key);
+    if (node_it != MCTS.end()) {
+        return &(node_it->second);
+    }
 
-    // Insert the new node in the Hash table if it wasn't found.
+    Node new_node = { .key = state_key, };
+    auto new_node_it = MCTS.insert(std::make_pair(state_key, new_node)).first;
 
-    //new_node.key = state_key;
-
-    //new_node.parent = state.p_data->parent_action;    // We've set actions[0] to ACTION_NONE so okay
-
-    // auto new_node_it = MCTS.insert(std::make_pair(state_key, new_node)).first;
-
-    // return &(new_node_it->second);
+    return &(new_node_it->second);
 }
-
 
 // Used for choosing actions during the random_simulations.
 namespace Random {
@@ -101,21 +71,6 @@ namespace Random {
             return typename Cont::value_type();
         return choices[dist(rd) % choices.size()];
     }
-
-    // Action choose(const ActionVec& choices)
-    // {
-    //     if (choices.empty())
-    //         return ACTION_NONE;
-    //     return choices[dist(rd) % choices.size()];
-    // }
-
-    // // Return a random choice, or a NULL cd
-    // ClusterData choose(const sg::ClusterDataVec& choices)
-    // {
-    //     if (choices.empty())
-    //         return ClusterData { CELL_NONE, Color::Empty, 0 };
-    //     return choices[dist(rd) % choices.size()];
-    // }
 }
 
 //******************************* Time management *************************/
@@ -148,30 +103,33 @@ bool Agent::computation_resources()
 
 void init_logger()
 {
+    auto logging_lvl = (use_logging) ? spdlog::level::trace : spdlog::level::off;
     auto mcts_logger = spdlog::get("mcts_logger");
     if (mcts_logger.get() == nullptr) {
         mcts_logger = spdlog::rotating_logger_mt("mcts_logger", "logs/mcts.txt", 1048576 * 5, 3);
     }
 
-    if (!use_logging) {
-        mcts_logger->set_level(spdlog::level::off);
-    }
+    mcts_logger->set_level(logging_lvl);
 
-    mcts_logger->set_level(spdlog::level::trace);
+    // if (!use_logging) {
+    //     mcts_logger->set_level(spdlog::level::off);
+    // }
+
+    // mcts_logger->set_level(spdlog::level::trace);
 }
 
 // TODO: The problem right now is with the actions stack not getting initialized
 Agent::Agent(sg::State& state)
     : state(state)
+    , states()
+    , stack()
 {
     init_logger();
+    init_data();
 }
 
-void Agent::init_search()
+void Agent::init_data()
 {
-    auto logger = spdlog::get("mcts_logger");
-    logger->trace("Initializing search");
-
     ply                 = 1;
     cnt_iterations      = 0;
     cnt_simulations     = 0;
@@ -183,94 +141,91 @@ void Agent::init_search()
     value_global_min    = std::numeric_limits<double>::max();
     value_global_avg    = 0;
     global_max_depth    = 0;
+}
 
+void Agent::init_search()
+{
     // Backup the state descriptor in case it is stored higher up on the states stack
     // states[0] = *state.p_data;
     // state.p_data = &(states[0]);
+    states[0] = state.clone_data();
 
     state.redirect_data_to(states[0]);
-    root = nodes[1] = get_node(state);
+
+    nodes[1] = get_node(state);
+
+    root = nodes[1];
+
     actions[0] = &EDGE_NONE;
 
-    if (root->n_visits == 0) {
+    if (nodes[1]->n_visits == 0) {
         init_children();
     }
 }
 
 //******************************** Main methods ***************************/
 
-/////////////////////////////////////////
-// NEED TO CAREFULLY THINK ABOUT 0-INITIALIZATION.
+//////////////////////////////////////////////////////////////////////////////////
 // AT EVERY APPLY_ACTION, I WILL USE A StateData object COMING
-// FROM THE STATES stack... AND AT EEVRY STEP OF
-// TREE_POLICY(), WE ASSIGN TO ACTION[i]...
-// THAT'S WHY IT WOULD BE A GOOD IDEA TO 0-INIT ALL THOSE
-// STACKS AT EVERY CALL OF SET_ROOT
-///////////////////////////////////////////
+// FROM THE STATES stack... AND AT EVERY STEP OF
+// TREE_POLICY(), WE ASSIGN A POINTER TO AN EDGE TO ACTION[ply]...
+////////////////////////////////////////////////////////////////////////////////////
 
-// StateData copy_sd(const State& state)
+// void Agent::set_root()
 // {
-//     //return ret;
-//     // std::copy(state.cells().begin(), state.cells().end(), ret.cells.begin());
-//     // ret.cells = state.cells();
-//     // ret.key = state.key();
-//     // ret.n_empty_rows = state.p_data->n_empty_rows;
+//     if (use_time) {
+//         init_time();
+//     }
+
+//     // Reset the search buffers (0 initialize our memory pool)
+//     nodes = { {} };
+//     actions = { {} };
+//     stack = { {} };
+
+//     // states[0] = *(state.p_data);
+//     // state.p_data = &(states[0]);
+//     states[0] = state.clone_data();
+//     state.redirect_data_to(states[0]);
+
+//     actions[0] = &EDGE_NONE;
+
+//     // Set the pointer to root node
+//     root = nodes[1] = get_node(state);
+
+//     // Reset the counters
+//     ply = 1;
+//     global_max_depth = ply;
+//     cnt_iterations = 0;
+//     cnt_simulations = 0;
+//     cnt_descent = 0;
+//     cnt_explored_nodes = 0;
+//     cnt_rollout = 0;
+//     cnt_new_nodes = 0;
+
+//     // NOTE : states[ply=1] will contain the result of applying action stack[ply].action, on calling
+//     // apply_action for the first time, (and subsequently etc...), the state points state[ply=1]'s
+//     // previous* pointer to the initial state, before applying the action.
+//     // NOTE : It is the state's responsibility to update states[ply], we only pass it
+//     // a (ref to a) StateData object when asking for an apply_action(), and the undo_action() reverts the
+//     // state to state[ply]->previous
+
+//     // NOTE: No need to generate clusters, a state constructs its key on initialization and apply_move so it
+//     // always has a valid key to return.
+//     // TODO: However, we need to implement tree_policy without calls to state.apply_action... only then can we
+//     // defer state.generate_clusters() to the expansion phase (init_childrene).
+
+//     //root = nodes[ply] = get_node(state);
+
+//     // Reset stats
+//     //value_global_max = std::numeric_limits<double>::min();
+//     //value_global_min = std::numeric_limits<double>::max();
+
+//     if (root->n_visits == 0) {
+//         init_children();
+//     }
+
+//     spdlog::debug("After call to init_children, root has {}", root->n_children);
 // }
-
-void Agent::set_root()
-{
-    if (use_time) {
-        init_time();
-    }
-
-    // Reset the search buffers (0 initialize our memory pool)
-    nodes = { {} };
-    actions = { {} };
-    stack = { {} };
-
-    // states[0] = *(state.p_data);
-    // state.p_data = &(states[0]);
-    state.redirect_data_to(states[0]);
-
-    actions[0] = &EDGE_NONE;
-
-    // Set the pointer to root node
-    root = nodes[1] = get_node(state);
-
-    // Reset the counters
-    ply = 1;
-    global_max_depth = ply;
-    cnt_iterations = 0;
-    cnt_simulations = 0;
-    cnt_descent = 0;
-    cnt_explored_nodes = 0;
-    cnt_rollout = 0;
-    cnt_new_nodes = 0;
-
-    // NOTE : states[ply=1] will contain the result of applying action stack[ply].action, on calling
-    // apply_action for the first time, (and subsequently etc...), the state points state[ply=1]'s
-    // previous* pointer to the initial state, before applying the action.
-    // NOTE : It is the state's responsibility to update states[ply], we only pass it
-    // a (ref to a) StateData object when asking for an apply_action(), and the undo_action() reverts the
-    // state to state[ply]->previous
-
-    // NOTE: No need to generate clusters, a state constructs its key on initialization and apply_move so it
-    // always has a valid key to return.
-    // TODO: However, we need to implement tree_policy without calls to state.apply_action... only then can we
-    // defer state.generate_clusters() to the expansion phase (init_childrene).
-
-    //root = nodes[ply] = get_node(state);
-
-    // Reset stats
-    //value_global_max = std::numeric_limits<double>::min();
-    //value_global_min = std::numeric_limits<double>::max();
-
-    if (root->n_visits == 0) {
-        init_children();
-    }
-
-    spdlog::debug("After call to init_children, root has {}", root->n_children);
-}
 
 ///////////////////////////////////////////////
 // THE 'USER INTERFACE' TO THE MCTS ALGORITHM
@@ -315,8 +270,7 @@ ClusterData Agent::MCTSBestActions()
 {
     auto logger = spdlog::get("mcts_logger");
 
-    //init_search();
-
+    init_search();
     if (is_terminal(root)) {
         logger->trace("root is terminal??");
         return { CELL_NONE, Color::Empty, 0 };
@@ -337,6 +291,8 @@ ClusterData Agent::MCTSBestActions()
 
 void Agent::step()
 {
+    // TODO: This function is called in a loop, it's a bit ridiculous to reload this logger
+    // every time...
     auto logger = spdlog::get("mcts_logger");
 
     logger->trace("Step {}", cnt_iterations);
@@ -466,12 +422,18 @@ Reward Agent::rollout_policy(Node* node)
 void Agent::init_children()
 {
     auto logger = spdlog::get("mcts_logger");
+    if (!logger) {
+        spdlog::warn("Cannot find logger");
+    }
 
     auto valid_actions = state.valid_actions_data();
 
-    logger->trace("Init_children for node {}\nValid actions:\n    ", *current_node());
+    spdlog::debug("Entered init_children");
+    //logger->trace("Init_children for node {}\nValid actions:\n    ", *current_node());
 
     assert(current_node()->n_visits == 0);
+
+    spdlog::debug("Found current_node");
 
     for (auto act : valid_actions) {
          logger->trace("{}", act);
@@ -486,7 +448,7 @@ void Agent::init_children()
     for (const auto& cd : valid_actions) {
         assert(cd.size > 1 && cd.color != Color::Empty && cd.rep != CELL_NONE);
 
-        Reward simulation_reward = random_simulation(cd, 100);
+        Reward simulation_reward = random_simulation(cd, 10);
 
         ++cnt_simulations;
         // children_edges.emplace_back(cd,
@@ -527,7 +489,8 @@ void Agent::backpropagate(Node* node, Reward r)
     assert(node == current_node());
 
     while (!is_root(current_node())) {
-        assert(stack[ply - 1].cd.rep != CELL_NONE);
+        auto const cd = stack[ply-1].cd;
+        assert(cd.size > 1 && cd.rep != CELL_NONE && cd.color != Color::Empty);
         undo_action(); // NOTE: Fetches last action on the search stack.
 
         ++actions[ply]->n_visits;
@@ -560,17 +523,29 @@ Reward Agent::random_simulation(const ClusterData& _cd, size_t n_simuls)
 
     // If the provided action is trivial or invalid, return early
     if (action_trivial(_cd)) {
-        return 0;
+        return evaluate_terminal();
     }
 
-  //// The ActionData object that will be used along the simulation.
-    ClusterData cd = this->apply_action(_cd);
+    // NOTE: No need to store a backup here, there is one at
+    // states[ply-1]
 
-    // As copy of the starting state for resetting the random simulations
-    const StateData sd_simul_backup = states[ply];
+    //const StateData sd_backup = state.clone_data();
+    // The ActionData object that will be used along the simulation.
+    auto cd = apply_action(_cd);
 
-    // The (mutable) StateData object holding the data along one whole simulation
-    StateData sd_simul = states[ply];
+    // Temporary hack... if cd is trivial then nothing has been done in apply_action
+    if (action_trivial(cd)) {
+        spdlog::warn("argument to apply_action wasn't trivial but return value was");
+        return evaluate_terminal();
+    }
+    // This time we store a backup because the subsequent apply_action calls
+    // don't save any data (or increment the ply) for performance reasons.
+
+    // TODO: In view of the above, the random_simulation method shouldn't be
+    // using the same API as the tree_policy() method... it's just confusing.
+    // Here I should just pass the state to a 'random_simulator' and not touch it
+    // more.
+    const StateData sd_simul_backup = state.clone_data();
 
     Reward total_reward = 0, score = evaluate_valid_action(cd);
 
@@ -579,7 +554,7 @@ Reward Agent::random_simulation(const ClusterData& _cd, size_t n_simuls)
         while (1) {
             cd = state.apply_random_action();
             // Break when there are no more valid actions to perform.
-            if (cd.size < 2) {
+            if (action_trivial(cd)) {
                 break;
             }
             score += evaluate_valid_action(cd);
@@ -596,12 +571,10 @@ Reward Agent::random_simulation(const ClusterData& _cd, size_t n_simuls)
         score = 0;
     }
 
-    Reward avg_reward = total_reward / n_simuls;
-
-  //// undo the initial action we applied when entering the function
+    // undo the initial action we applied when entering the function
     undo_action();
 
-    return avg_reward;
+    return total_reward / n_simuls;
 }
 
 // ***************************************** Selection of Nodes ************************************//
@@ -744,8 +717,7 @@ bool Agent::is_terminal(Node* node)
 }
 
 ////////////////////////////////////////
-// INTERFACE BETWEEN THE STATE'S ACTION METHODS
-// AND THE DYNAMIC TREE DATA
+// APPLYING AND UNDOING ACTIONS
 ////////////////////////////////////////
 
 // Sends a cluster as the action
@@ -757,67 +729,37 @@ ClusterData Agent::apply_action(const ClusterData& _cd)
 {
     assert(ply < MAX_PLY);
 
+    // The state will store its new data on the passed StateData object
+    ClusterData cd = state.apply_action(_cd, states[ply]);
+
+    if (cd.size < 2 || cd.rep == CELL_NONE || cd.color == Color::Empty) {
+        spdlog::debug("apply_action called with invalid action");
+        return ClusterData {.rep = CELL_NONE, .color = Color::Empty, .size = 0};
+    }
+
     // So at (this) ply, the action is given by stack[ply]
-    stack[ply].cd = _cd;
+    stack[ply].cd = cd;
     stack[ply].ply = ply;
-    stack[ply].reward = evaluate_valid_action(_cd);
+    stack[ply].reward = evaluate_valid_action(cd);
 
-    //spdlog::debug("Before state apply action\n{}\n", state);
-    ++ply;
-    return state.apply_action(_cd, states[ply]); // The state will store its new data on the passed StateData object
+     ++ply;
+    return cd;
 
-    //spdlog::debug("After state apply action\n{}\n", state);
-}
-
-// bool Agent::apply_action_blind(const ClusterData& cd)
-// {
-//     if (cd.color == Color::Empty || cd.size < 2 || cd.rep == CELL_NONE) {
-//         return false;
-//     }
-
-//     return state.apply_action_blind(cd);
-// }
-
-// // Sends the representative of a cluster as the action
-// void Agent::apply_action(Action action)
-// {
-//     assert (ply < MAX_PLY);
-
-//     stack[ply].ply = ply;
-//     stack[ply].cd.rep = action;          // This action dictates the next state, and current state (data) will go to stack[ply].previous
-
-//     state.apply_action_gen_clusters(action, states[ply]);    // The state will store its new data on the passed StateData object
-//     ++ply;
-// }
-
-// void Agent::apply_action_blind(Action action)
-// {
-//     assert (ply < MAX_PLY);
-
-//     stack[ply].ply = ply;
-//     stack[ply].cd.rep = action;
-
-//     state.apply_action_blind(action, states[ply]);
-//     ++ply;
-// }
+ }
 
 void Agent::undo_action()
 {
-    assert(ply > 1);
+    // If apply_action can return early and not increment ply... undo_action() should
+    // do the same in exactly the same way
+    if (stack[ply-1].cd.size < 2 || stack[ply-1].cd.rep == CELL_NONE || stack[ply-1].cd.color == Color::Empty) {
+        spdlog::debug("undo_action called with invalid action on stack");
+        return;
+    }
     state.undo_action(stack[ply - 1].cd); // NOTE: State holds a pointer to its previous StateData object
     --ply;
 }
 
-// void Agent::undo_action(const ClusterData& cd)
-// {
-//     assert (ply > 1);
-//     --ply;
-//     state.undo_action(cd);    // State holds a pointer to its previous StateData object
-// }
-
 //***************************** Evaluation of nodes **************************/
-
-// TODO If we hit an empty terminal state while searching, we stop everything and return that line!
 
 /////////////////////////////////////////////////////
 // BUSINESS LOGIC FOR EVALUATION DURING MCTS
@@ -837,16 +779,6 @@ Reward Agent::evaluate_terminal() const
     return state.is_empty() ? 1000 : 0;
 }
 
-// std::vector<Action> Agent::get_edges_from_root() const
-// {
-//     auto ret = std::vector<Edge*> { };
-
-//     for (int hist_ply = 1; hist_ply < ply; ++hist_ply)
-//     {
-//         ret.push_back(actions[hist_ply]);
-//     }
-// }
-
 //************************************** DEBUGGING ***************************************/
 
 /////////////////////////////////////////////////////
@@ -862,9 +794,6 @@ void Agent::set_max_iterations(int i)
     max_iterations = i;
 }
 
-///////////////////////////
-// FOR BENCHMARKING AND RUNNING TESTS
-//////////////////////////
 void Agent::reset()
 {
     MCTS.clear();
@@ -939,51 +868,4 @@ double Agent::get_exploration_cst() const
     return exploration_cst;
 }
 
-// void Agent::print_debug_cnts(std::ostream& _out) const
-// {
-//         std::cerr << "Iterations: " << cnt_iterations << '\n';
-//         std::cerr << "Descent count: " << cnt_descent << '\n';
-//         std::cerr << "Rollout count: " << cnt_simulations << '\n';
-//         std::cerr << "Exploration count: " << cnt_explored_nodes << '\n';
-//         std::cerr << "Number of nodes in table: " << mcts::MCTS.size() << '\n';
-//         std::cerr << "Number of nodes not found with get_node: " << cnt_new_nodes << std::endl;
-// }
-
-// void Agent::print_node(std::ostream& _out, Node* node) const
-// {
-//     _out << "Node: v=" << node->n_visits << std::endl;
-//     for (int i=0; i<node->n_children; ++i)
-//     {
-//         auto c = node->children[i];
-//         _out << "    Action " << (int)c.cd.rep << ": v=" << c.n_visits << ", val=" << c.reward_avg_visit << std::endl;
-//     }
-// }
-
 } // namespace mcts
-
-// // Same as Stockfish's function but rescaled and translated to fit the observed values of this game.
-// Reward Agent::value_to_reward(double v)
-// {
-//     auto M = value_global_max;
-//     auto m = value_global_min;
-//     auto avg = value_global_avg;
-
-//     //const double c = -0.00490739829861;
-//     const double c = -0.01;
-
-//     auto res = 1.0 / ( 1+std::exp(c * (v - value_global_avg))  );    // Centered at the global average
-//     //assert(res > -0.00001 && res < 1.00001);
-
-//     return res;
-// }
-
-// // The inverse
-// double Agent::reward_to_value(Reward r)
-// {
-//     auto M = value_global_max;
-//     auto m = value_global_min;
-
-//     const Reward g = 203.77396313709564 * (M - m) / 2.0;  // 1/k
-
-//     return g * std::log(r / (1.0 - r)) + (M - m)/2.0;
-// }

@@ -1,6 +1,7 @@
 #include "mctstree.h"
 #include <math.h>
 #include <utility>
+#include <vector>
 
 namespace mctsimpl {
 
@@ -12,60 +13,67 @@ Edge EDGE_NONE { .cd=sg::ClusterData{}, .avg_val=0, .best_val=0, .n_visits=0, .p
 using MCTSLookupTable = std::unordered_map<Key, Node>;
 MCTSLookupTable MCTS {};
 
-Node* get_node(Key key) {
-    // auto node_it = MCTS.find(key);
-    //
-    // Node* p_ret = [&](){
-    //     if (node_it != MCTS.end()) {
-    //         return &(node_it->second);
-    //     }
-    //     Node new_node = { .key = key, .n_visits = 0, .children {}};
-    //     auto [ret_it, success] =  MCTS.insert(std::make_pair(key, new_node));
-    //     return &(ret_it->second);
-    // }();
-
-    auto [ret_it, success] =  MCTS.emplace(std::make_pair(key, Node{.key=key, .n_visits=0, .children{}}));
-    return &(ret_it->second);
-}
-
-double ucb(const Node& node, const Edge& edge, const double exploration_cst = DEFAULT_EXPLORATION_CST)
+MctsTree::MctsTree()
 {
-    Reward result = edge.n_visits ? edge.avg_val : edge.best_val;
-    result += exploration_cst * sqrt(static_cast<double>(log(node.n_visits)) / static_cast<double>(edge.n_visits + 1));
-
-    // Some random normlization to have the rewards between 0 and 1.
-    result = result / 5000.0;
-
-    return result;
+    // Allocate the desired amount of memory for the lookup table.
 }
 
-Reward get_value(const Edge& edge, const EdgeField field)
+Node* MctsTree::find_or_make_node(Key key) {
+
+}
+
+// WARNING: Make sure this doesn't backfire, it seems like the pointer
+// will simply be const_casted but who knows
+Node* MctsTree::push_node(Node* const node)
 {
-    switch(field)
-    {
-    case EdgeField::ucb:
-        return ucb(*edge.parent, edge);
-    case EdgeField::n_visits:
-        return edge.n_visits;
-    case EdgeField::avg_val:
-        return edge.avg_val;
-    case EdgeField::best_val:
-        return edge.best_val;
-    }
-}
-    
-Edge* MctsTree::best_child(Node* const node, const EdgeField field)
-{
-    Edge* ret = &EDGE_NONE;
-    Reward best_val = std::numeric_limits<Reward>::min();
 
-    for (auto child_it = node->children.begin(); child_it != node->children.end(); ++child_it) {
-        if (Reward r = get_value(*child_it, field); r > best_val) {
-            best_val = r;
-            ret = &(*child_it);
-        }
-    }
-    return ret;
 }
+
+Edge* MctsTree::push_edge(Edge* const edge)
+
+
+// Node* MctsTree::set_root(const Key key)
+// {
+//     m_current_depth = 1;
+//     return node_stack[m_current_depth] = p_root = find_or_create_node(key);
+// }
+
+// void MctsTree::set_children(Node* const node, const std::vector<Edge>& _children)
+// {
+//     node->children = _children;
+//     auto target_size = _children.size() > max_children ? max_children : _children.size();
+//     node->children.resize(target_size);
+// }
+
+std::size_t MctsTree::size() const
+{
+    return MCTS.size();
+}
+
+
+
+
+
+bool is_leaf(Node* node)
+{
+    return node->n_visits > 0 && node->children.size() == 0;
+}
+
+Node* MctsTree::current_node()
+{
+    return node_stack[m_current_depth];
+}
+
+// Node* MctsTree::best_leaf(const EdgeField field)
+// {
+//     m_current_depth = 1;
+
+//     while (!is_leaf(current_node())) {
+//         edge_stack[m_current_depth] = best_child(node, field);
+//         ++m_current_depth;
+//     }
+//     return node;
+// }
+
 
 } // namespace mctsimpl

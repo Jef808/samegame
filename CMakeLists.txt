@@ -52,8 +52,10 @@ set( sg_SOURCES
   ${SRC_DIR}/display.cpp
   )
 set( mcts_SOURCES
-  ${SRC_DIR}/mctstree.cpp
   ${SRC_DIR}/mcts.cpp
+  )
+set( mctstree_SOURCES
+  ${SRC_DIR}/mctstree.cpp
   )
 
 ######################################################
@@ -135,11 +137,13 @@ add_executable(
 # The mcts implementation test files
 set( mcts_tests_SOURCES
   ${TEST_DIR}/mcts_tests.cc
-  ${TEST_DIR}/mctstree_tests.cc
   )
 add_executable(
   mcts_tests
   ${mcts_tests_SOURCES}
+  )
+add_executable(
+  mctstree_tests ${TEST_DIR}/mctstree_tests.cc ${mctstree_SOURCES}
   )
 
 # Linking directives for the automatic tests.
@@ -147,6 +151,8 @@ target_link_libraries( randutil_tests gtest_main spdlog::spdlog )
 target_include_directories( randutil_tests PRIVATE ${SRC_DIR} )
 target_link_libraries( sg_tests sg gtest_main spdlog::spdlog )
 target_link_libraries( mcts_tests sg_mcts gtest_main spdlog::spdlog )
+target_link_libraries( mctstree_tests gtest_main spdlog::spdlog )
+target_include_directories( mctstree_tests PUBLIC ${SRC_DIR} )
 
 include( GoogleTest )
-gtest_discover_tests( sg_tests mcts_tests )
+gtest_discover_tests( sg_tests mcts_tests mctstree_tests )

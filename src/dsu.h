@@ -114,20 +114,22 @@ struct ClusterT {
         using iterator = typename ClusterList::iterator;
         using const_iterator = typename ClusterList::const_iterator;
 
-        static inline constexpr std::array<Index, N> init = []() {
-             std::array<Index, N> ret{};
-             std::iota(ret.begin(), ret.end(), 0);
-             return ret;
+        static const inline ClusterList init = []() {
+            ClusterList _init{};
+            std::array<typename _Cluster::Index, N> ndx;
+            std::iota(ndx.begin(), ndx.end(), 0);
+            std::transform(ndx.begin(), ndx.end(), _init.begin(), [](auto n) {
+                return Cluster(n);
+            });
+            return _init;
         }();
 
-        constexpr DSU() : m_clusters( reset() ) { }
-        constexpr ClusterList reset()
+        constexpr DSU() : m_clusters{ init }
+            { }
+
+        constexpr void reset()
         {
-            ClusterList ret { };
-            std::transform(init.begin(), init.end(), ret.begin(), [](Index ndx) {
-                return Cluster(ndx);
-            });
-            return ret;
+            m_clusters = init;
         }
 
         // NOTE: One can also keep track of all visited nodes during the search and at the end
@@ -188,8 +190,6 @@ struct ClusterT {
             auto rep = find_rep(ndx);
             return m_clusters[rep];
         }
-
-
 
             auto begin() { return m_clusters.begin(); }
             auto end() { return m_clusters.end(); }

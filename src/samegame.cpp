@@ -27,6 +27,35 @@ State::State(std::istream& _in, StateData& sd)
     sd.key = key();
 }
 
+State::~State()
+{
+    delete p_data;
+}
+
+State::State(const State& other)
+{
+    p_data = new StateData(*other.p_data);
+}
+
+State& State::operator=(const State& other)
+{
+    if (p_data != other.p_data) {
+        delete p_data;
+        p_data = new StateData(*other.p_data);
+    }
+    return *this;
+}
+
+State State::clone() const
+{
+    return *this;
+}
+
+void State::reset(const State& other)
+{
+    *this = other;
+}
+
 StateData State::clone_data() const
 {
     StateData sd { *p_data };
@@ -181,11 +210,6 @@ bool operator==(const StateData& a, const StateData& b)
         }
     }
     return true;
-}
-
-bool operator==(const ClusterData& a, const ClusterData& b)
-{
-    return a.rep == b.rep && a.color == b.color && a.size == b.size;
 }
 
 } //namespace sg

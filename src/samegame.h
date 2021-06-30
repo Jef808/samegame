@@ -19,11 +19,15 @@ namespace sg {
  */
 class State {
 public:
+    using reward_type = double;
+    using key_type = uint64_t;
+
     explicit State(StateData&);
     explicit State(std::istream&, StateData&);
-    State(const State&) = delete;
-    State& operator=(const State&) = delete;
+    ~State();
 
+    State clone() const;
+    void reset(const State&);
     StateData clone_data() const;
     StateData& copy_data_to(StateData&) const;
     StateData& move_data_to(StateData&);
@@ -40,10 +44,19 @@ public:
     bool is_terminal() const;
     bool is_empty() const;
 
+    template < typename ActionT >
+    reward_type evaluate(const ActionT& action) const
+        { return std::max(0, (action.size - 2) * (action.size - 2)); }
+    reward_type evaluate_terminal() const
+        { return is_empty() * 1000; }
+
     Key key() const;
 
     friend std::ostream& operator<<(std::ostream&, const State&);
 private:
+    State(const State&);
+    State& operator=(const State&);
+
     StateData* p_data;
 };
 
@@ -59,7 +72,6 @@ template < typename _Index_T, _Index_T IndexNone >
 extern bool operator==(const ClusterT<_Index_T, IndexNone>& a, const ClusterT<_Index_T, IndexNone>& b);
 template < >
 inline bool operator==(const ClusterT<Cell, MAX_CELLS>& a, const ClusterT<Cell, MAX_CELLS>& b) { return a == b; }
-extern bool operator==(const ClusterData&, const ClusterData&);
 
 } // namespace sg
 

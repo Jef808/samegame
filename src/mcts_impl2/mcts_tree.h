@@ -40,19 +40,23 @@ public:
         p_root(get_node(key))
     { }
 
-    void set_root(const key_type key) {
-        p_root = &get_node(key);
+    Node& set_root(const key_type key) {
+        *(p_root = &get_node(key));
     }
     Node& get_root() {
         return *p_root;
     }
+    Node& get_node(const key_type key) {
+        auto [node_it, inserted] = m_table.insert(std::pair{ key, Node{ .key=key, } });
+        return *node_it;
+    }
     void traversal_push(edge_pointer edge) {
-        edge_stack[m_depth] = &edge; ++m_depth;
+        m_edge_stack[m_depth] = &edge; ++m_depth;
     }
     void backpropagate(reward_type reward) {
         std::for_each(std::execution::par_unseq,
-                      edge_stack.begin(),
-                      edge_stack.begin() + current_depth,
+                      m_edge_stack.begin(),
+                      m_edge_stack.begin() + m_depth,
                       update_stats(reward));
     }
 
@@ -64,11 +68,6 @@ private:
     TraversalStack m_edge_stack;
     size_t         m_depth;
     Node*          p_root;
-
-    std::pair<Node*, bool> get_node(const key_type key) {
-        auto [node_it, inserted] = m_table.insert(std::pair{ key, Node{ .key=key, } });
-        return std::pair{&*node_it, inserted};
-    }
 
     struct update_stats {
         reward_type val;

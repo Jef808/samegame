@@ -13,37 +13,63 @@ class Mcts
 public:
     using reward_type = typename StateT::reward_type;
     using ActionSequence = typename std::vector<ActionT>;
+    enum class BackpropagationStrategy
+        { avg_value, avg_best_value, best_value };
+    enum class ActionSelectionMethod
+        { by_ucb, by_n_visits, by_best_value };
 
-    Mcts(StateT& _r_state) :
-        r_state(_r_state), m_tree() { }
+    Mcts(StateT& _state) :
+        m_state(_state),
+        m_tree(_state),
+        m_current_node(m_tree.get_root()),
+        m_root_state(m_state.clone())
+    { }
 
-    ActionSequence best_action_sequence();
+    ActionT best_action(ActionSelectionMethod);
+    ActionSequence best_action_sequence(ActionSelectionMethod);
+
+    void set_exploration_constant(double c)
+        { exploration_constant = c; }
+    void set_backpropagation_strategy(BackpropagationStrategy strat)
+        { backpropagation_strategy = strat; }
+    void set_max_iterations(unsigned int n)
+        { max_iterations = n; }
 
 private:
     using Tree = MctsTree<StateT, ActionT, MAX_DEPTH>;
     using node_type = typename Tree::Node;
     using edge_type = typename Tree::Edge;
     using node_pointer = typename Tree::node_pointer;
+    using edge_pointer = typename Tree::edge_pointer;
 
-    StateT& r_state;
+    StateT& m_state;
+    node_type& m_current_node;
     Tree m_tree;
-    node_type& current_node;
+    StateT m_root_state;
+    ActionSequence m_actions_done;
 
-    enum class EdgeSelectionMethod
-        { by_ucb, by_n_visits, by_avg_value, by_best_value };
-    enum class BackpropagationStrategy
-        { avg_value, avg_best_value, best_value };
+    // Parameters
+    double exploration_constant = 0.7;
+    BackpropagationStrategy backpropagation_strategy = BackpropagationStrategy::best_value;
+    unsigned int max_iterations;
 
-    reward_type evaluate(const ActionT& action)
-        { return r_state.evaluate(action); }
-    reward_type evaluate_terminal()
-        { return r_state.evaluate_terminal(); }
+    // Counters
+    unsigned int iteration_cnt = 0;
 
     /**
-     * Select the best edge from the current node according to the given criterion
-     * and update the current_node pointer to the resulting node.
+     * Run the algorithm until the `computation_resources()` returns false.
      */
-    void traverse_edge(EdgeSelectionMethod);
+    void run();
+
+    /**
+     * Complete a full cycle of the algorithm.
+     */
+    void step();
+
+    /**
+     * Select the best edge from the current node according to the given method.
+     */
+    edge_type& get_best_edge(ActionSelectionMethod);
 
     /**
      * Traverse the tree to the next leaf to be expanded, using the ucb criterion
@@ -62,20 +88,75 @@ private:
      * For when the current node is a leaf, run `simulate_playout` on all the state's
      * valid actions and populate the current node with children edges corresponding
      * to those actions.
+     *
+     * @Note This increments the node's number of visits by 1 (and only does that when the
+     * node had been visited before but is terminal).
      */
     void expand_current_node();
 
     /**
      * After expanding the leaf node, update the statistics of all edges connecting it
-     * to the root according to the results obtained from the simulated playouts.
-     *
-     * @NOTE One can specify to backpropagate the best result, the average result,
-     * or the average of the best results.
+     * to the root with the results obtained from the simulated playouts, according to
+     * the set BackpropagationStrategy.
      */
-    void backpropagate(BackpropagationStrategy = BackpropagationStrategy::Best_value);
+    void backpropagate();
+
+    /**
+     * Apply the edge's action to the state and update `m_current_node`.
+     *
+     * @Note This increments the current node's number of visits by 1.
+     */
+    void traverse_edge(edge_type&);
+
+    /**
+     * Resets `m_current_node` with a reference to the root node, and reset the
+     * state with the data from `m_root_state`.
+     */
+    void return_to_root();
+
+    /**
+     * Apply the edge's action to the state and change the root to be that
+     * new state.
+     *
+     * @Note The action is pushed at the back of `m_actions_done`.
+     */
+    void apply_root_action(const edge_type& edge);
+
+    /**
+     * Return true if the set computation resources (e.g. a set time) have not been depleted,
+     * false otherwise.
+     */
+    bool computation_resources();
+
+    /**
+     * Using the given selection method, return the best path from root to leaf according to
+     * the statistics collected thus far.
+     *
+     * @Note If the sequence reaches unvisited nodes, `best_traversal` completes it with
+     * random choices of edges.
+     */
+    ActionSequence best_traversal(ActionSelectionMethod);
+
+    reward_type evaluate(const ActionT& action)
+        { return m_state.evaluate(action); }
+    reward_type evaluate_terminal()
+        { return m_state.evaluate_terminal(); }
+
+    struct UCB;
+    auto constexpr make_edge_cmp(ActionSelectionMethod) const;
 };
 
 
+
+// auto inline constexpr cmp_n_visits = [](const auto& a, const auto& b) {
+//     return a.n_visits < b.n_visits;
+// };
+// auto inline constexpr cmp_best_value = [](const auto& a, const auto& b) {
+//     return a.best_val < b.best_val;
+// };
+// auto inline constexpr get_ucb_cmp = []<typename UCB>(unsigned int node_n_visits, double expl_cst) {
+//     return UCB(node_n_visits, expl_cst);
+// };
 
 } // namespace mcts_impl2
 

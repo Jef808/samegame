@@ -27,11 +27,6 @@ State::State(std::istream& _in, StateData& sd)
     sd.key = key();
 }
 
-State::~State()
-{
-    delete p_data;
-}
-
 State::State(const State& other)
 {
     p_data = new StateData(*other.p_data);
@@ -39,21 +34,19 @@ State::State(const State& other)
 
 State& State::operator=(const State& other)
 {
-    if (p_data != other.p_data) {
-        delete p_data;
-        p_data = new StateData(*other.p_data);
-    }
+    *p_data = *other.p_data;
     return *this;
 }
 
 State State::clone() const
 {
-    return *this;
+    State new_state(*this);
+    return new_state;
 }
 
 void State::reset(const State& other)
 {
-    *this = other;
+    *p_data = *other.p_data;
 }
 
 StateData State::clone_data() const
@@ -128,6 +121,10 @@ bool State::is_empty() const
     return p_data->cells[((HEIGHT - 1) * WIDTH)] == Color::Empty;
 }
 
+bool State::is_trivial(const ClusterData& cd) const {
+    return cd.rep == CELL_NONE || cd.color == Color::Empty || cd.size < 2;
+}
+
 //******************************** Apply / Undo actions **************************************/
 
 /**
@@ -150,9 +147,12 @@ ClusterData State::apply_action(const ClusterData& cd, StateData& sd)
     return cd_ret;
 }
 
-void State::apply_action(const ClusterData& cd)
+bool State::apply_action(const ClusterData& cd)
 {
-    clusters::apply_action(p_data->cells, cd.rep);
+    ClusterData res = clusters::apply_action(p_data->cells, cd.rep);
+    p_data->cnt_colors[to_integral(res.color)] -= (res.size > 1) * res.size;
+    p_data->key = 0;
+    return !is_trivial(res);
 }
 
 ClusterData State::apply_random_action()
@@ -168,6 +168,18 @@ void State::undo_action(const ClusterData& cd)
     p_data->cnt_colors[to_integral(cd.color)] += cd.size;
 }
 //*************************** Display *************************/
+
+ClusterData State::get_cd(Cell rep) const {
+    return sg::clusters::get_cluster_data(p_data->cells, rep);
+}
+
+void State::display(Cell rep) const {
+    std::cout << display::to_string(p_data->cells, rep) << std::endl;
+}
+
+void State::show_clusters() const {
+    display::view_clusters(std::cout, p_data->cells);
+}
 
 std::ostream& operator<<(std::ostream& _out, const std::pair<Grid&, Cell>& _ga)
 {

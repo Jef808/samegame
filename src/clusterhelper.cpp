@@ -30,19 +30,29 @@ Rand::Util<Cell> rand_util { };
  * Populate the disjoint data structure grid_dsu with all adjacent clusters
  * of cells sharing a same color.
  */
+// FIXME This returns some clusters that are way too large...
 void generate_clusters(const Grid& _grid)
 {
     grid_dsu.reset();
 
     auto n_empty_rows = _grid.n_empty_rows;
     bool row_empty = true;
+    bool found_empty_cell = false;
+    Cell empty_cell = CELL_NONE;
 
     auto row = HEIGHT - 1;
     // Iterate from bottom row upwards so we can stop at the first empty row.
     while (row > n_empty_rows) {
+        row_empty = true;
         // All the row except last cell
         for (auto cell = row * WIDTH; cell < (row + 1) * WIDTH - 1; ++cell) {
             if (_grid[cell] == Color::Empty) {
+                if (found_empty_cell) {
+                    grid_dsu.unite(cell, empty_cell);
+                } else {
+                    empty_cell = cell;
+                    found_empty_cell = true;
+                }
                 continue;
             }
             row_empty = false;
@@ -56,24 +66,43 @@ void generate_clusters(const Grid& _grid)
             }
         }
         // If the last cell of the row is empty
-        if (_grid[(row + 1) * WIDTH - 1] == Color::Empty) {
+        Cell cell = (row + 1) * WIDTH - 1;
+        if (_grid[cell] == Color::Empty) {
             if (row_empty) {
+                // Unite all the (empty) cells above with the `empty_cell` cell,
+                // then return.
+                grid_dsu.unite(empty_cell, cell);
+                for (auto e_cell = cell - WIDTH; e_cell > 0; --e_cell) {
+                    grid_dsu.unite(e_cell, e_cell - 1);
+                }
                 return;
             }
-            continue;
+            if (found_empty_cell) {
+                grid_dsu.unite(cell, empty_cell);
+            } else {
+                empty_cell = cell;
+                found_empty_cell = true;
+            }
         }
         // If it is not empty, compare up
-        if (_grid[(row + 1) * WIDTH - 1] == _grid[row * WIDTH - 1]) {
-            grid_dsu.unite((row + 1) * WIDTH - 1, row * WIDTH - 1);
+        else if (_grid[cell] == _grid[cell - WIDTH]) {
+            grid_dsu.unite(cell, cell - WIDTH);
         }
         --row;
-        row_empty = true;
     }
     // The upmost non-empty row: only compare right
     for (auto cell = 0; cell < CELL_UPPER_RIGHT - 1; ++cell) {
+        //row_empty = true;
         if (_grid[cell] == Color::Empty) {
+            if (found_empty_cell) {
+                grid_dsu.unite(cell, empty_cell);
+            } else {
+                empty_cell = cell;
+                found_empty_cell = true;
+            }
             continue;
         }
+        //row_empty = false;
         if (_grid[cell] == _grid[cell + 1]) {
             grid_dsu.unite(cell, cell + 1);
         }
@@ -519,55 +548,3 @@ ClusterData apply_random_action(Grid& _grid)
 
 
 } // namespace sg::clusters
-
-
-// ***************************** SCRAP ****************************************
-//
-//
-// ClusterData State::find_random_cluster_medium_grid()
-// {
-//     ClusterData ret { };
-//     // Prepare a random order to use for traversing the grid row by row
-//     static std::array<uint8_t, 15> row_ndx;
-//     Random::shuffle_rows(row_ndx);
-//     // Then traverse rows until our conditions are met.
-//     static std::array<ClusterData, 16> cluster_choices;
-//     cluster_choices.fill(ClusterData { });
-//     int _nb = 0;
-
-//     static uint8_t ymax;
-
-//     Grid& cells = p_data->cells;
-
-//     for (int _y = 0; _y < 15; ++_y)
-//     {
-//         int x = 0, y = row_ndx[_y];
-//         while (x < 15)
-//         {
-
-//     std::find_if(begin(cells) + y * 15, begin(cells) + (y + 1) * 15,
-//                 [&](auto c){ return c != Color::Empty; });
-
-//             bool row_empty = true;
-
-//             if (cells[x + y * 15] != Color::Empty)
-//             {
-//                 row_empty = false;
-//                 ret = kill_cluster_blind(Cell(x + y * 15));
-//                 if (ret.size > 2)
-//                 {
-//                     cluster_choices[_nb] = ret;
-//                 }
-//             }
-
-//             ++x;
-
-//             if (!cluster_choices.empty()) {
-//                 break;
-//             }
-//             if (row_empty && y < ymax)    {
-//                 ymax = y;
-//             }
-//         }
-//     }
-// }

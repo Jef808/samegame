@@ -2,6 +2,7 @@
 #define __MCTS_H_
 
 #include "mcts_impl2/mcts_tree.h"
+#include <memory>
 
 namespace mcts_impl2 {
 
@@ -20,13 +21,13 @@ public:
 
     Mcts(StateT& _state) :
         m_state(_state),
-        m_tree(_state),
-        m_current_node(m_tree.get_root()),
+        m_tree(_state.key()),
+        p_current_node(m_tree.get_root()),
         m_root_state(m_state.clone())
     { }
 
     ActionT best_action(ActionSelectionMethod);
-    ActionSequence best_action_sequence(ActionSelectionMethod);
+    ActionSequence best_action_sequence(ActionSelectionMethod = ActionSelectionMethod::by_best_value);
 
     void set_exploration_constant(double c)
         { exploration_constant = c; }
@@ -43,8 +44,8 @@ private:
     using edge_pointer = typename Tree::edge_pointer;
 
     StateT& m_state;
-    node_type& m_current_node;
     Tree m_tree;
+    node_pointer p_current_node;
     StateT m_root_state;
     ActionSequence m_actions_done;
 
@@ -69,7 +70,7 @@ private:
     /**
      * Select the best edge from the current node according to the given method.
      */
-    edge_type& get_best_edge(ActionSelectionMethod);
+    edge_pointer get_best_edge(ActionSelectionMethod);
 
     /**
      * Traverse the tree to the next leaf to be expanded, using the ucb criterion
@@ -106,7 +107,7 @@ private:
      *
      * @Note This increments the current node's number of visits by 1.
      */
-    void traverse_edge(edge_type&);
+    bool traverse_edge(edge_pointer);
 
     /**
      * Resets `m_current_node` with a reference to the root node, and reset the
@@ -143,6 +144,8 @@ private:
         { return m_state.evaluate_terminal(); }
 
     struct UCB;
+    struct UCB2 { UCB2(double e, unsigned int n) {}};
+
     auto constexpr make_edge_cmp(ActionSelectionMethod) const;
 };
 
@@ -159,5 +162,7 @@ private:
 // };
 
 } // namespace mcts_impl2
+
+#include "mcts_impl2/mcts.hpp"
 
 #endif

@@ -1,7 +1,6 @@
 #ifndef __MCTSTREE_H_
 #define __MCTSTREE_H_
 
-#include <execution>
 #include <unordered_map>
 #include <vector>
 
@@ -40,22 +39,23 @@ public:
         p_root(get_node(key))
     { }
 
-    Node& set_root(const key_type key) {
-        *(p_root = &get_node(key));
+    node_pointer set_root(const key_type key) {
+        p_root = get_node(key);
+        m_depth = 0;
     }
-    Node& get_root() {
-        return *p_root;
+    node_pointer get_root() {
+        m_depth = 0;
+        return p_root;
     }
-    Node& get_node(const key_type key) {
+    node_pointer get_node(const key_type key) {
         auto [node_it, inserted] = m_table.insert(std::pair{ key, Node{ .key=key, } });
-        return *node_it;
+        return &(node_it->second);
     }
     void traversal_push(edge_pointer edge) {
-        m_edge_stack[m_depth] = &edge; ++m_depth;
+        m_edge_stack[m_depth] = edge; ++m_depth;
     }
     void backpropagate(reward_type reward) {
-        std::for_each(std::execution::par_unseq,
-                      m_edge_stack.begin(),
+        std::for_each(m_edge_stack.begin(),
                       m_edge_stack.begin() + m_depth,
                       update_stats(reward));
     }

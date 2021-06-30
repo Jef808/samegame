@@ -139,7 +139,7 @@ void view_clusters(std::ostream& _out, const Grid& _grid)
 
     for (const auto& cd : cd_vec) {
         _out << to_string(_grid, cd.rep);
-        std::this_thread::sleep_for(500.0ms);
+        std::this_thread::sleep_for(300.0ms);
     }
 }
 

@@ -24,7 +24,9 @@ public:
 
     explicit State(StateData&);
     explicit State(std::istream&, StateData&);
-    ~State();
+    State(State&& other)
+        { p_data = other.p_data; }
+    ~State() = default;
 
     State clone() const;
     void reset(const State&);
@@ -38,15 +40,19 @@ public:
 
     ClusterDataVec valid_actions_data() const;
     ClusterData apply_action(const ClusterData&, StateData&);
-    void apply_action(const ClusterData&);
+    bool apply_action(const ClusterData&);
     ClusterData apply_random_action();
     void undo_action(const ClusterData&);
     bool is_terminal() const;
     bool is_empty() const;
+    bool is_trivial(const ClusterData&) const;
 
+    ClusterData get_cd(Cell rep) const;
+    void display(Cell rep) const;
+    void show_clusters() const;
     template < typename ActionT >
     reward_type evaluate(const ActionT& action) const
-        { return std::max(0, (action.size - 2) * (action.size - 2)); }
+        { return std::max(0LU, (action.size - 2) * (action.size - 2)); }
     reward_type evaluate_terminal() const
         { return is_empty() * 1000; }
 

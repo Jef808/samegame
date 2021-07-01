@@ -1,17 +1,20 @@
 // samegame.cpp
 #include "samegame.h"
-#include "clusterhelper.h"
-#include "display.h"
-#include "sghash.h"
 #include "types.h"
+
+#include <algorithm>
 #include <array>
+#include <cmath>
+#include <cstdint>
+
 #include <iostream>
 #include <string>
-#include <spdlog/spdlog.h>
-#include <spdlog/fmt/ostr.h>
 #include <utility>
 #include <vector>
 
+#include "sghash.h"
+#include "clusterhelper.h"
+#include "display.h"
 
 namespace sg {
 
@@ -102,6 +105,11 @@ Key State::key() const
     return p_data->key = zobrist::get_key(p_data->cells);
 }
 
+const ColorCounter& State::color_counter() const
+{
+    return p_data->cnt_colors;
+}
+
 /**
  * First check if the key contains the answer, check for clusters but return
  * false as soon as it finds one instead of computing all clusters.
@@ -134,7 +142,7 @@ bool State::is_trivial(const ClusterData& cd) const {
 ClusterData State::apply_action(const ClusterData& cd, StateData& sd)
 {
     if (p_data->cells[cd.rep] != cd.color) {
-        spdlog::warn("State::apply_action called with ClusterData of wrong color");
+
         return ClusterData{ .rep = CELL_NONE, .color = Color::Empty, .size = 0 };
     }
     copy_data_to(sd);
@@ -181,6 +189,10 @@ void State::show_clusters() const {
     display::view_clusters(std::cout, p_data->cells);
 }
 
+void State::view_action_sequence(const std::vector<ClusterData>& actions, int delay_in_ms) const {
+    display::view_action_sequence(std::cout, p_data->cells, actions, delay_in_ms);
+}
+
 std::ostream& operator<<(std::ostream& _out, const std::pair<Grid&, Cell>& _ga)
 {
     return _out << display::to_string(_ga.first, _ga.second);
@@ -204,6 +216,26 @@ std::ostream& operator<<(std::ostream& _out, const StateData& _sd)
 std::ostream& operator<<(std::ostream& _out, const ClusterData& _cd)
 {
     return _out << _cd.rep << ' ' << display::to_string(_cd.color) << ' ' << std::to_string(_cd.size);
+}
+
+//*************************** Evaluation *************************/
+
+/**
+ * @Note clamp(v, l, h) assigns l to v if v < l or assigns h to v if h < v else returns v.
+ * In this case, (2-size)^2 is always greater than (2-size) so we're just returning
+ * [max(0, size-2)]^2 in a more efficient way.
+ */
+State::reward_type State::evaluate(const ClusterData& action) const
+{
+    double val = action.size - 2.0;
+    val = (val + std::abs(val)) / 2.0;
+    return std::pow(val, 2) * 0.0025;
+    
+    //return std::max(0.0, (action.size - 2.0)) * std::max(0.0, (action.size - 2.0)) / 3e02 ;
+}
+State::reward_type State::evaluate_terminal() const
+{
+    return static_cast<reward_type>(is_empty()) * 1000.0 * 0.0025;
 }
 
 //**************************** Comparison ***********************/

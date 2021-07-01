@@ -4,6 +4,7 @@
 #define __SAMEGAME_H_
 
 #include "types.h"
+#include <algorithm>
 #include <deque>
 #include <iosfwd>
 #include <memory>
@@ -39,6 +40,7 @@ public:
     const StateData& data() const;
 
     ClusterDataVec valid_actions_data() const;
+    const ColorCounter& color_counter() const;
     ClusterData apply_action(const ClusterData&, StateData&);
     bool apply_action(const ClusterData&);
     ClusterData apply_random_action();
@@ -50,11 +52,9 @@ public:
     ClusterData get_cd(Cell rep) const;
     void display(Cell rep) const;
     void show_clusters() const;
-    template < typename ActionT >
-    reward_type evaluate(const ActionT& action) const
-        { return std::max(0LU, (action.size - 2) * (action.size - 2)); }
-    reward_type evaluate_terminal() const
-        { return is_empty() * 1000; }
+    void view_action_sequence(const std::vector<ClusterData>&, int=0) const;
+    reward_type evaluate(const ClusterData& action) const;
+    reward_type evaluate_terminal() const;
 
     Key key() const;
 

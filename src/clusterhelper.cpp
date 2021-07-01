@@ -2,7 +2,6 @@
 #include "dsu.h"
 #include "rand.h"
 #include "types.h"
-#include <spdlog/spdlog.h>
 #include <deque>
 #include <iostream>
 #include <set>
@@ -438,7 +437,7 @@ Cluster get_cluster(const Grid& _grid, const Cell _cell)
 
     if (color == Color::Empty) {
         return Cluster();
-        spdlog::warn("WARNING! Called get_cluster with an empty color");
+        std::cerr << "WARNING! Called get_cluster with an empty color" << std::endl;
     }
 
     Cluster ret { _cell, };

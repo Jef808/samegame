@@ -7,7 +7,6 @@
 #include <iostream>
 #include <numeric>
 #include <memory>
-#include <spdlog/fmt/ostr.h> // For fmt to recognize the operator<< of ClusterT
 #include <sstream>
 #include <type_traits>
 #include <utility>

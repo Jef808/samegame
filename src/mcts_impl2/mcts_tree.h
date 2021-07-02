@@ -19,7 +19,6 @@ class MctsTree
   using reward_type = typename StateT::reward_type;
   struct Node
   {
-    //key_type key;
     int n_visits;
     ChildrenContainer children;
   };

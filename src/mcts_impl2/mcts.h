@@ -35,7 +35,7 @@ class Mcts
     : m_state(state),
       m_tree(state.key()),
       p_current_node(m_tree.get_root()),
-      m_root_state(state.clone()),
+      m_root_state(state),
       UCB_Func(ucb_func)
   {
   }

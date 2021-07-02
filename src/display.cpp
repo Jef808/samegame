@@ -169,6 +169,8 @@ void view_action_sequence(std::ostream& out,
   double score = 0;
   ClusterData cd_check{};
 
+  ///TODO Use this and take grid by const ref.
+  //State _copy(*this);
   PRINT("Printing ",
         actions.size(),
         " actions from the following starting grid\n",
@@ -193,7 +195,6 @@ void view_action_sequence(std::ostream& out,
               return;
           }
       }
-
       int val = it->size - 2;
       val = (val + std::abs(val)) / 2;
       score += std::pow(val, 2);
@@ -208,4 +209,43 @@ void view_action_sequence(std::ostream& out,
   PRINT("FINAL SCORE : ", score);
 }
 
+void log_action_sequence(std::ostream& out,
+                         Grid& grid,
+                         const std::vector<ClusterData>& actions)
+{
+  double score = 0;
+  ClusterData cd_check{};
+
+  out << "Computing score.\n";
+
+  for (auto it = actions.begin(); it != actions.end(); ++it)
+  {
+      cd_check = clusters::apply_action(grid, it->rep);
+
+      if (cd_check.rep == CELL_NONE || cd_check.color == Color::Empty || cd_check.size < 2)
+      {
+          out << "\n    WARNING: Action number "
+              << std::distance(actions.begin(), it)
+              << " is invalid." << std::endl;
+
+          if (it != actions.end())
+          {
+              out << " Skipping the remaining "
+                  << std::distance(it, actions.end())
+                  << " actions." << std::endl;
+              return;
+          }
+      }
+
+      int val = it->size - 2;
+      val = (val + std::abs(val)) / 2;
+      score += std::pow(val, 2);
+  }
+
+  score += 1000 * (grid[CELL_BOTTOM_LEFT] == Color::Empty);
+
+  out << "    FINAL SCORE : " << score << std::endl;
+}
+
+  
 } // namespace sg::display

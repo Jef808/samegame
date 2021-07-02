@@ -16,14 +16,6 @@
 
 namespace mcts_impl2 {
 
-template<typename ActionT>
-std::pair<int, int> to_coords(const ActionT& action)
-{
-  int x = action.rep % 15;
-  int y = action.rep / 14;
-  return std::pair{x, 14 - y};
-}
-
 template<typename StateT,
          typename ActionT,
          typename UCB_Functor,
@@ -72,6 +64,7 @@ template<typename StateT,
          size_t MAX_DEPTH>
 void Mcts<StateT, ActionT, UCB_Functor, MAX_DEPTH>::step()
 {
+  return_to_root();
   select_leaf();
   expand_current_node();
   backpropagate();
@@ -84,7 +77,6 @@ template<typename StateT,
          size_t MAX_DEPTH>
 void Mcts<StateT, ActionT, UCB_Functor, MAX_DEPTH>::select_leaf()
 {
-  return_to_root();
   while (p_current_node->n_visits > 0 && p_current_node->children.size() > 0)
   {
     ++p_current_node->n_visits;
@@ -127,23 +119,27 @@ Mcts<StateT, ActionT, UCB_Functor, MAX_DEPTH>::simulate_playout(
 {
   reward_type avg_reward = 0.0;
   reward_type best_reward = 0.0;
-  const StateT state_backup = m_state.clone();
+
   ActionT _action = action;
+  reward_type score = 0.0;
 
   for (auto i = 0; i < reps; ++i)
   {
-    reward_type score = 0.0;
-    while (!m_state.is_trivial(_action))
+    score = 0.0;
+    // Make a copy since the `apply_action()` methods mutate the state.
+    StateT tmp_state = m_state;
+
+    while (!tmp_state.is_trivial(_action))
     {
       score += evaluate(_action);
-      _action = m_state.apply_random_action();
+      _action = tmp_state.apply_random_action();
     }
     score += evaluate_terminal();
 
     avg_reward += (score - avg_reward) / (i + 1.0);
-    best_reward = std::max(best_reward, score);
-    m_state.reset(state_backup);
+    best_reward = score > best_reward ? score : best_reward;
   }
+
   return std::pair{avg_reward, best_reward};
 }
 
@@ -153,7 +149,8 @@ template<typename StateT,
          size_t MAX_DEPTH>
 void Mcts<StateT, ActionT, UCB_Functor, MAX_DEPTH>::expand_current_node()
 {
-  if (p_current_node->n_visits > 1)
+  ///TODO Shouldn't this be >0?
+  if (p_current_node->n_visits > 0)
   {
     ++p_current_node->n_visits;
     return;
@@ -224,6 +221,7 @@ void Mcts<StateT, ActionT, UCB_Functor, MAX_DEPTH>::backpropagate()
                                          std::plus<double>(),
                                          get_value);
 
+    /// TODO Is the case there needed??
     return total / static_cast<double>(p_current_node->children.size());
   }();
 
@@ -250,7 +248,9 @@ typename Mcts<StateT, ActionT, UCB_Functor, MAX_DEPTH>::ActionSequence
 Mcts<StateT, ActionT, UCB_Functor, MAX_DEPTH>::best_traversal(
     ActionSelection method)
 {
-  return_to_root();
+  if (m_state != m_root_state)
+      { return_to_root(); }
+
   edge_pointer p_nex_edge;
   while (p_current_node->n_visits > 0 && p_current_node->children.size() > 0)
   {
@@ -271,7 +271,6 @@ Mcts<StateT, ActionT, UCB_Functor, MAX_DEPTH>::best_traversal(
     action = m_state.apply_random_action();
   }
 
-  return_to_root();
   return m_actions_done;
 }
 
@@ -282,7 +281,7 @@ template<typename StateT,
 void Mcts<StateT, ActionT, UCB_Functor, MAX_DEPTH>::return_to_root()
 {
   p_current_node = m_tree.get_root();
-  m_state.reset(m_root_state);
+  m_state = m_root_state;
 }
 
 template<typename StateT,

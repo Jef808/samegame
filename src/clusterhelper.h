@@ -18,6 +18,8 @@ namespace clusters {
  */
  void input(std::istream&, StateData&);
 
+ void input(std::istream&, Grid&, ColorCounter&);
+
 /**
  * @Return true if the given cell has a right neighbor of the same color,
  * else false.

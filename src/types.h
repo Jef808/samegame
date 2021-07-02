@@ -38,7 +38,6 @@ struct StateData {
     ColorCounter  cnt_colors   {   };
     int           ply          { 0 };
     int           n_empty_rows { 0 };
-    StateData*    previous     { nullptr };
 };
 
 // Cluster or Action descriptor
@@ -64,9 +63,9 @@ using ActionVec = ClusterDataVec;
 
 namespace mcts {
 
-auto static constexpr MAX_DEPTH    = 128;
-auto static constexpr MAX_NODES    = 16384;
-auto static constexpr MAX_CHILDREN = 32;
+auto static constexpr MAX_DEPTH = 128;
+auto static constexpr MAX_NODES = 16384;
+auto static constexpr DEFAULT_MAX_CHILDREN = 32;
 auto static constexpr DEFAULT_EXPLORATION_CST = 0.7;
 
 typedef double Reward;

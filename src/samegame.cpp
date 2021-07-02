@@ -18,78 +18,102 @@
 
 namespace sg {
 
-State::State(StateData& sd)
-    : p_data(&sd)
+State::State(std::istream& _in) :
+    m_key(), m_cells{}, m_cnt_colors{}
+{
+    clusters::input(_in, m_cells, m_cnt_colors);
+}
+
+State::State(key_type key, const Grid& cells, const ColorCounter& ccolors) :
+    m_key(key), m_cells{cells}, m_cnt_colors{ccolors}
 {
 }
 
-State::State(std::istream& _in, StateData& sd)
-    : p_data(&sd)
-{
-    clusters::input(_in, sd);
-    sd.key = key();
-}
+// State::State(StateData& sd)
+//     : p_data(&sd)
+// {
+// }
 
-State::State(const State& other)
-{
-    p_data = new StateData(*other.p_data);
-}
+// State::State(std::istream& _in, StateData& sd)
+//     : p_data(&sd)
+// {
+//     clusters::input(_in, sd);
+//     sd.key = key();
+// }
 
-State& State::operator=(const State& other)
-{
-    *p_data = *other.p_data;
-    return *this;
-}
+// State::State(const State& other)
+// {
+//     StateData* new_data = new StateData;
+//     *p_data = *other.p_data;
+// }
 
-State State::clone() const
-{
-    State new_state(*this);
-    return new_state;
-}
+// State::~State()
+// {
+//     delete p_data;
+//     p_data = nullptr;
+// }
 
-void State::reset(const State& other)
-{
-    *p_data = *other.p_data;
-}
+// State& State::operator=(const State& other)
+// {
+//     if (this == &other)
+//         return *this;
+//     delete p_data;
+//     *p_data = *other.p_data;
+//     return *this;
+// }
 
-StateData State::clone_data() const
-{
-    StateData sd { *p_data };
-    return sd;
-}
+// State State::clone() const
+// {
+//     State new_state(*this);
+//     return new_state;
+// }
 
-StateData& State::copy_data_to(StateData& _sd) const
-{
-    return _sd = *p_data;
-}
+// State& State::reset(const State& other)
+// {
+//     return *this = other;
+// }
 
-StateData& State::redirect_data_to(StateData& _sd)
-{
-    p_data = &_sd;
-    return _sd;
-}
+// StateData State::clone_data() const
+// {
+//     StateData sd { *p_data };
+//     return sd;
+// }
 
-StateData& State::move_data_to(StateData& _sd)
-{
-    _sd = std::move(*p_data);
-    p_data = &_sd;
-    return _sd;
-}
+// StateData& State::copy_data_to(StateData& _sd) const
+// {
+//     return _sd = *p_data;
+// }
 
-void State::copy_data_from(const StateData& _sd)
-{
-    *p_data = _sd;
-}
+// StateData& State::redirect_data_to(StateData& _sd)
+// {
+//     if (p_data == &_sd)
+//         return _sd;
+//     delete p_data;
+//     p_data = &_sd;
+//     return _sd;
+// }
 
-const StateData& State::data() const
-{
-    return *p_data;
-}
+// StateData& State::move_data_to(StateData& _sd)
+// {
+//     _sd = std::move(*p_data);
+//     p_data = &_sd;
+//     return _sd;
+// }
+
+// void State::copy_data_from(const StateData& _sd)
+// {
+//     *p_data = _sd;
+// }
+
+// const StateData& State::data() const
+// {
+//     return *p_data;
+// }
 //****************************************** Actions methods ***************************************/
 
 ClusterDataVec State::valid_actions_data() const
 {
-    return clusters::get_valid_clusters_descriptors(p_data->cells);
+    return clusters::get_valid_clusters_descriptors(m_cells);
 }
 
 bool key_uninitialized(const Grid& grid, Key key)
@@ -97,17 +121,11 @@ bool key_uninitialized(const Grid& grid, Key key)
    return key == 0 && grid[CELL_BOTTOM_LEFT] != Color::Empty;
 }
 
-Key State::key() const
+Key State::key()
 {
-    if (p_data->key != 0) {
-        return p_data->key;
-    }
-    return p_data->key = zobrist::get_key(p_data->cells);
-}
-
-const ColorCounter& State::color_counter() const
-{
-    return p_data->cnt_colors;
+    if (key_uninitialized(m_cells, m_key))
+        return m_key = zobrist::get_key(m_cells);
+    return m_key;
 }
 
 /**
@@ -116,81 +134,52 @@ const ColorCounter& State::color_counter() const
  */
 bool State::is_terminal() const
 {
-    Key key = p_data->key;
     // If the first bit is on, then it has been computed and stored in the second bit.
-    if (key & 1) {
-        return key & 2;
+    if (m_key & 1) {
+        return m_key & 2;
     }
-    return !clusters::has_nontrivial_cluster(p_data->cells);
-}
-
-bool State::is_empty() const
-{
-    return p_data->cells[((HEIGHT - 1) * WIDTH)] == Color::Empty;
-}
-
-bool State::is_trivial(const ClusterData& cd) const {
-    return cd.rep == CELL_NONE || cd.color == Color::Empty || cd.size < 2;
+    return !clusters::has_nontrivial_cluster(m_cells);
 }
 
 //******************************** Apply / Undo actions **************************************/
 
-/**
- * Apply an action to a state in a persistent way: the new data is
- * recorded on the provided StateData object.
- */
-ClusterData State::apply_action(const ClusterData& cd, StateData& sd)
-{
-    if (p_data->cells[cd.rep] != cd.color) {
-
-        return ClusterData{ .rep = CELL_NONE, .color = Color::Empty, .size = 0 };
-    }
-    copy_data_to(sd);
-    sd.previous = p_data;
-    p_data = &sd;
-
-    ClusterData cd_ret = clusters::apply_action(sd.cells, cd.rep);
-    sd.cnt_colors[to_integral(cd_ret.color)] -= (cd_ret.size > 1) * cd_ret.size;
-
-    return cd_ret;
-}
-
 bool State::apply_action(const ClusterData& cd)
 {
-    ClusterData res = clusters::apply_action(p_data->cells, cd.rep);
-    p_data->cnt_colors[to_integral(res.color)] -= (res.size > 1) * res.size;
-    p_data->key = 0;
+    ClusterData res = clusters::apply_action(m_cells, cd.rep);
+    m_cnt_colors[to_integral(res.color)] -= (res.size > 1) * res.size;
+    m_key = 0;
     return !is_trivial(res);
 }
 
 ClusterData State::apply_random_action()
 {
-    ClusterData cd = clusters::apply_random_action(p_data->cells);
-    p_data->cnt_colors[to_integral(cd.color)] -= cd.size;
+    ClusterData cd = clusters::apply_random_action(m_cells);
+    m_cnt_colors[to_integral(cd.color)] -= cd.size;
     return cd;
 }
 
-void State::undo_action(const ClusterData& cd)
-{
-    p_data = p_data->previous;
-    p_data->cnt_colors[to_integral(cd.color)] += cd.size;
-}
 //*************************** Display *************************/
 
 ClusterData State::get_cd(Cell rep) const {
-    return sg::clusters::get_cluster_data(p_data->cells, rep);
+    return sg::clusters::get_cluster_data(m_cells, rep);
 }
 
 void State::display(Cell rep) const {
-    std::cout << display::to_string(p_data->cells, rep) << std::endl;
+    std::cout << display::to_string(m_cells, rep) << std::endl;
 }
 
 void State::show_clusters() const {
-    display::view_clusters(std::cout, p_data->cells);
+    display::view_clusters(std::cout, m_cells);
 }
 
 void State::view_action_sequence(const std::vector<ClusterData>& actions, int delay_in_ms) const {
-    display::view_action_sequence(std::cout, p_data->cells, actions, delay_in_ms);
+    Grid grid_copy = m_cells;
+    display::view_action_sequence(std::cout, grid_copy, actions, delay_in_ms);
+}
+
+void State::log_action_sequence(std::ostream& out, const std::vector<ClusterData>& actions) const {
+    Grid grid_copy = m_cells;
+    display::log_action_sequence(out, grid_copy, actions);
 }
 
 std::ostream& operator<<(std::ostream& _out, const std::pair<Grid&, Cell>& _ga)
@@ -200,12 +189,12 @@ std::ostream& operator<<(std::ostream& _out, const std::pair<Grid&, Cell>& _ga)
 
 std::ostream& operator<<(std::ostream& _out, const std::pair<const State&, Cell>& _sc)
 {
-    return _out << display::to_string(_sc.first.data().cells, _sc.second);
+    return _out << display::to_string(_sc.first.grid(), _sc.second);
 }
 
 std::ostream& operator<<(std::ostream& _out, const State& _state)
 {
-    return _out << display::to_string(_state.p_data->cells, CELL_NONE);
+    return _out << display::to_string(_state.m_cells, CELL_NONE);
 }
 
 std::ostream& operator<<(std::ostream& _out, const StateData& _sd)

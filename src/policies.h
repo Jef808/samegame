@@ -3,6 +3,7 @@
 
 #include <cmath>
 #include <functional>
+#include <utility>
 
 namespace policies {
 
@@ -20,6 +21,22 @@ struct Default_UCB_Func
              + expl_cst * sqrt(log(n_parent_visits) / (edge.n_visits + 1.0));
     };
   }
+};
+
+template<typename StateT, typename ActionT>
+struct Default_Playout_Func
+{
+  Default_Playout_Func(StateT& _state) :
+    state(_state)
+  {
+  }
+
+  ActionT operator()()
+  {
+    return state.apply_random_action();
+  }
+
+  StateT& state;
 };
 
 } // namespace policies

@@ -71,6 +71,14 @@ add_executable( benchmark benchmark.cpp )
 target_link_libraries( benchmark sg )
 target_include_directories( benchmark PUBLIC ${DATA_DIR} ${SRC_DIR} )
 
+# What was on codingame
+add_executable( main_old old_version/old_main.cpp )
+target_link_libraries( main_old sg )
+target_include_directories( main_old PUBLIC ${DATA_DIR} ${SRC_DIR} )
+
+# Same as main but bundled for codingame
+add_executable( main_cg ${CMAKE_SOURCE_DIR}/cg/cg_bundle.cpp )
+
 ######################################################
 # Misc test / debug / benchmark targets              #
 ######################################################
@@ -88,6 +96,11 @@ target_include_directories(display_clusters PRIVATE ${DATA_DIR})
 add_executable( test_random_simulation_toconsole tests/test_random_simulation_toconsole.cpp )
 target_link_libraries( test_random_simulation_toconsole sg )
 target_include_directories( test_random_simulation_toconsole PRIVATE ${DATA_DIR} )
+
+# Agent random
+add_executable( agent_random ${SRC_DIR}/agent_random_test.cpp )
+target_link_libraries( agent_random sg )
+target_link_directories( agent_random PRIVATE ${DATA_DIR} )
 
 #################################################################################
 # Custom targets for project filesystem hygiene                                 #

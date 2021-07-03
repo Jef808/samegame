@@ -9,6 +9,7 @@ namespace mcts {
 template<typename StateT,
          typename ActionT,
          typename UCB_Functor = policies::Default_UCB_Func,
+         typename Playout_Functor = typename policies::Default_Playout_Func<StateT, ActionT>,
          size_t MAX_DEPTH = 128>
 class Mcts
 {
@@ -31,7 +32,8 @@ class Mcts
     by_best_value
   };
 
-  Mcts(StateT& state, UCB_Functor ucb_func)
+  Mcts(StateT& state,
+       UCB_Functor ucb_func = policies::Default_UCB_Func{})
     : m_state(state),
       m_tree(state.key()),
       p_current_node(m_tree.get_root()),
@@ -41,17 +43,8 @@ class Mcts
   }
 
   ActionT best_action(ActionSelection);
-  ActionSequence best_action_sequence(
-    ActionSelection = ActionSelection::by_best_value);
-
-  void set_exploration_constant(double c)
-    { exploration_constant = c; }
-  void set_backpropagation_strategy(BackpropagationStrategy strat)
-  { backpropagation_strategy = strat; }
-  void set_max_iterations(unsigned int n)
-    { max_iterations = n; }
-
-  /** Modify the computation resources. */
+  ActionSequence
+      best_action_sequence(ActionSelection = ActionSelection::by_best_value);
 
  private:
   using Tree = MctsTree<StateT, ActionT, MAX_DEPTH>;
@@ -72,6 +65,8 @@ class Mcts
   BackpropagationStrategy backpropagation_strategy =
       BackpropagationStrategy::avg_value;
   unsigned int max_iterations;
+  unsigned int max_time = 20000;
+  bool use_time = (max_time > 0);
 
   // Counters
   unsigned int iteration_cnt = 0;
@@ -91,7 +86,7 @@ class Mcts
      */
   edge_pointer get_best_edge(ActionSelection);
 
-/**
+  /**
    * The *Selection* phase of the algorithm.
    */
   edge_pointer Select_next_edge();
@@ -104,11 +99,12 @@ class Mcts
 
   /**
      * Play a random actions from the current state starting at the given action, until
-     * the state is final. Repeat this process a number of times specified by the second (optional)
-     * parameter and return the pair consisting of the average reward and the best reward, respectively.
+     * the state is terminal. Return the total score.
+     *
+     * The function is templated so that we can specify how to call state.apply_random_action()
+     * depending on the context.
      */
-  std::pair<reward_type, reward_type> simulate_playout(const ActionT&,
-                                                       unsigned int = 1);
+  reward_type simulate_playout(const ActionT&);
 
   /**
      * For when the current node is a leaf, run `simulate_playout` on all the state's
@@ -160,15 +156,33 @@ class Mcts
      */
   reward_type evaluate(const ActionT&);
 
-/**
+  /**
    * Evaluation of terminal states.
    */
   reward_type evaluate_terminal();
 
-  /**  Return true if the agent can continue with the algorithm. */
+  /**
+   * Return true if the agent can continue with the algorithm.
+   */
   bool computation_resources();
-};
 
+  /**
+   * Initialize the counters and time to 0.
+   */
+  void init_counters();
+
+ public:
+  void set_exploration_constant(double c) { exploration_constant = c; }
+  void set_backpropagation_strategy(BackpropagationStrategy strat)
+  {
+    backpropagation_strategy = strat;
+  }
+  void set_max_iterations(unsigned int n) { max_iterations = n; }
+  void set_max_time(unsigned int t) { max_time = t; }
+
+  unsigned int get_iterations_cnt() { return iteration_cnt; }
+  size_t get_n_nodes() { return m_tree.size(); }
+};
 
 } // namespace mcts
 

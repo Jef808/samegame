@@ -5,21 +5,33 @@
 #include "mcts_tree.h"
 #include "policies.h"
 
-#include <cassert>
+#include <chrono>
 #include <cmath>
 #include <functional>
 #include <iostream>
 #include <numeric>
-#include <optional>
 #include <vector>
 
 namespace mcts {
+namespace timer {
+
+std::chrono::time_point<std::chrono::steady_clock> start;
+
+std::chrono::milliseconds::rep time_elapsed()
+{
+  return std::chrono::duration_cast<std::chrono::milliseconds>(
+             std::chrono::steady_clock::now() - start)
+      .count();
+}
+
+} // namespace timer
 
 template<typename StateT,
          typename ActionT,
          typename UCB_Functor,
+         typename Playout_Functor,
          size_t MAX_DEPTH>
-ActionT Mcts<StateT, ActionT, UCB_Functor, MAX_DEPTH>::best_action(
+ActionT Mcts<StateT, ActionT, UCB_Functor, Playout_Functor, MAX_DEPTH>::best_action(
     ActionSelection method)
 {
   run();
@@ -31,9 +43,10 @@ ActionT Mcts<StateT, ActionT, UCB_Functor, MAX_DEPTH>::best_action(
 template<typename StateT,
          typename ActionT,
          typename UCB_Functor,
+         typename Playout_Functor,
          size_t MAX_DEPTH>
-typename Mcts<StateT, ActionT, UCB_Functor, MAX_DEPTH>::ActionSequence
-Mcts<StateT, ActionT, UCB_Functor, MAX_DEPTH>::best_action_sequence(
+typename Mcts<StateT, ActionT, UCB_Functor, Playout_Functor, MAX_DEPTH>::ActionSequence
+Mcts<StateT, ActionT, UCB_Functor, Playout_Functor, MAX_DEPTH>::best_action_sequence(
     ActionSelection method)
 {
   run();
@@ -43,9 +56,11 @@ Mcts<StateT, ActionT, UCB_Functor, MAX_DEPTH>::best_action_sequence(
 template<typename StateT,
          typename ActionT,
          typename UCB_Functor,
+         typename Playout_Functor,
          size_t MAX_DEPTH>
-void Mcts<StateT, ActionT, UCB_Functor, MAX_DEPTH>::run()
+void Mcts<StateT, ActionT, UCB_Functor, Playout_Functor, MAX_DEPTH>::run()
 {
+  init_counters();
   p_current_node = m_tree.get_root();
   if (p_current_node->n_visits > 0 && p_current_node->children.size() == 0)
   {
@@ -60,8 +75,9 @@ void Mcts<StateT, ActionT, UCB_Functor, MAX_DEPTH>::run()
 template<typename StateT,
          typename ActionT,
          typename UCB_Functor,
+         typename Playout_Functor,
          size_t MAX_DEPTH>
-void Mcts<StateT, ActionT, UCB_Functor, MAX_DEPTH>::step()
+void Mcts<StateT, ActionT, UCB_Functor, Playout_Functor, MAX_DEPTH>::step()
 {
   return_to_root();
   select_leaf();
@@ -73,8 +89,9 @@ void Mcts<StateT, ActionT, UCB_Functor, MAX_DEPTH>::step()
 template<typename StateT,
          typename ActionT,
          typename UCB_Functor,
+         typename Playout_Functor,
          size_t MAX_DEPTH>
-void Mcts<StateT, ActionT, UCB_Functor, MAX_DEPTH>::select_leaf()
+void Mcts<StateT, ActionT, UCB_Functor, Playout_Functor, MAX_DEPTH>::select_leaf()
 {
   while (p_current_node->n_visits > 0 && p_current_node->children.size() > 0)
   {
@@ -87,9 +104,10 @@ void Mcts<StateT, ActionT, UCB_Functor, MAX_DEPTH>::select_leaf()
 template<typename StateT,
          typename ActionT,
          typename UCB_Functor,
+         typename Playout_Functor,
          size_t MAX_DEPTH>
-typename Mcts<StateT, ActionT, UCB_Functor, MAX_DEPTH>::edge_pointer
-Mcts<StateT, ActionT, UCB_Functor, MAX_DEPTH>::get_best_edge(
+typename Mcts<StateT, ActionT, UCB_Functor, Playout_Functor, MAX_DEPTH>::edge_pointer
+Mcts<StateT, ActionT, UCB_Functor, Playout_Functor, MAX_DEPTH>::get_best_edge(
     ActionSelection method)
 {
   auto cmp = [&](const auto& a, const auto& b) {
@@ -113,42 +131,36 @@ Mcts<StateT, ActionT, UCB_Functor, MAX_DEPTH>::get_best_edge(
 template<typename StateT,
          typename ActionT,
          typename UCB_Functor,
+         typename Playout_Functor,
          size_t MAX_DEPTH>
-std::pair<typename StateT::reward_type, typename StateT::reward_type>
-Mcts<StateT, ActionT, UCB_Functor, MAX_DEPTH>::simulate_playout(
-    const ActionT& action, unsigned int reps)
+typename StateT::reward_type
+Mcts<StateT, ActionT, UCB_Functor, Playout_Functor, MAX_DEPTH>::simulate_playout(
+    const ActionT& action)
 {
-  reward_type avg_reward = 0.0;
-  reward_type best_reward = 0.0;
-
   ActionT _action = action;
   reward_type score = 0.0;
 
-  for (auto i = 0; i < reps; ++i)
+  // Make a copy since the `apply_action()` methods mutate the state.
+  StateT tmp_state = m_state;
+
+  Playout_Functor Playout_Func(tmp_state);
+
+  while (!tmp_state.is_trivial(_action))
   {
-    score = 0.0;
-    // Make a copy since the `apply_action()` methods mutate the state.
-    StateT tmp_state = m_state;
-
-    while (!tmp_state.is_trivial(_action))
-    {
-      score += evaluate(_action);
-      _action = tmp_state.apply_random_action();
-    }
-    score += evaluate_terminal();
-
-    avg_reward += (score - avg_reward) / (i + 1.0);
-    best_reward = score > best_reward ? score : best_reward;
+      score += tmp_state.evaluate(_action);
+      _action = Playout_Func();
   }
+  score += tmp_state.evaluate_terminal();
 
-  return std::pair{avg_reward, best_reward};
+  return score;
 }
 
 template<typename StateT,
          typename ActionT,
          typename UCB_Functor,
+         typename Playout_Functor,
          size_t MAX_DEPTH>
-void Mcts<StateT, ActionT, UCB_Functor, MAX_DEPTH>::expand_current_node()
+void Mcts<StateT, ActionT, UCB_Functor, Playout_Functor, MAX_DEPTH>::expand_current_node()
 {
   if (p_current_node->n_visits > 0)
   {
@@ -170,9 +182,8 @@ void Mcts<StateT, ActionT, UCB_Functor, MAX_DEPTH>::expand_current_node()
     edge_type new_edge{
         .action = a,
     };
-    auto [avg_val, best_val] = simulate_playout(a);
-    new_edge.avg_val = avg_val;
-    new_edge.best_val = best_val;
+    auto best_val = simulate_playout(a);
+    new_edge.avg_val = new_edge.best_val = best_val;
     p_current_node->children.push_back(new_edge);
   }
 
@@ -185,8 +196,9 @@ void Mcts<StateT, ActionT, UCB_Functor, MAX_DEPTH>::expand_current_node()
 template<typename StateT,
          typename ActionT,
          typename UCB_Functor,
+         typename Playout_Functor,
          size_t MAX_DEPTH>
-void Mcts<StateT, ActionT, UCB_Functor, MAX_DEPTH>::backpropagate()
+void Mcts<StateT, ActionT, UCB_Functor, Playout_Functor, MAX_DEPTH>::backpropagate()
 {
   using BackpropagationStrategy::avg_best_value;
   using BackpropagationStrategy::avg_value;
@@ -230,8 +242,9 @@ void Mcts<StateT, ActionT, UCB_Functor, MAX_DEPTH>::backpropagate()
 template<typename StateT,
          typename ActionT,
          typename UCB_Functor,
+         typename Playout_Functor,
          size_t MAX_DEPTH>
-void Mcts<StateT, ActionT, UCB_Functor, MAX_DEPTH>::traverse_edge(
+void Mcts<StateT, ActionT, UCB_Functor, Playout_Functor, MAX_DEPTH>::traverse_edge(
     edge_pointer edge)
 {
   m_state.apply_action(edge->action);
@@ -242,9 +255,10 @@ void Mcts<StateT, ActionT, UCB_Functor, MAX_DEPTH>::traverse_edge(
 template<typename StateT,
          typename ActionT,
          typename UCB_Functor,
+         typename Playout_Functor,
          size_t MAX_DEPTH>
-typename Mcts<StateT, ActionT, UCB_Functor, MAX_DEPTH>::ActionSequence
-Mcts<StateT, ActionT, UCB_Functor, MAX_DEPTH>::best_traversal(
+typename Mcts<StateT, ActionT, UCB_Functor, Playout_Functor, MAX_DEPTH>::ActionSequence
+Mcts<StateT, ActionT, UCB_Functor, Playout_Functor, MAX_DEPTH>::best_traversal(
     ActionSelection method)
 {
   if (m_state != m_root_state)
@@ -278,8 +292,9 @@ Mcts<StateT, ActionT, UCB_Functor, MAX_DEPTH>::best_traversal(
 template<typename StateT,
          typename ActionT,
          typename UCB_Functor,
+         typename Playout_Functor,
          size_t MAX_DEPTH>
-void Mcts<StateT, ActionT, UCB_Functor, MAX_DEPTH>::return_to_root()
+void Mcts<StateT, ActionT, UCB_Functor, Playout_Functor, MAX_DEPTH>::return_to_root()
 {
   p_current_node = m_tree.get_root();
   m_state = m_root_state;
@@ -288,8 +303,9 @@ void Mcts<StateT, ActionT, UCB_Functor, MAX_DEPTH>::return_to_root()
 template<typename StateT,
          typename ActionT,
          typename UCB_Functor,
+         typename Playout_Functor,
          size_t MAX_DEPTH>
-void Mcts<StateT, ActionT, UCB_Functor, MAX_DEPTH>::apply_root_action(
+void Mcts<StateT, ActionT, UCB_Functor, Playout_Functor, MAX_DEPTH>::apply_root_action(
     const edge_type& edge)
 {
   m_root_state.apply_action(edge.action);
@@ -301,18 +317,34 @@ void Mcts<StateT, ActionT, UCB_Functor, MAX_DEPTH>::apply_root_action(
 template<typename StateT,
          typename ActionT,
          typename UCB_Functor,
+         typename Playout_Functor,
          size_t MAX_DEPTH>
-bool Mcts<StateT, ActionT, UCB_Functor, MAX_DEPTH>::computation_resources()
+bool Mcts<StateT, ActionT, UCB_Functor, Playout_Functor, MAX_DEPTH>::computation_resources()
 {
-  return iteration_cnt < max_iterations;
+  bool time_ok = max_time > 0 ? timer::time_elapsed() < max_time : true;
+  bool iterations_ok =
+      max_iterations > 0 ? iteration_cnt < max_iterations : true;
+  return time_ok && iterations_ok;
 }
 
 template<typename StateT,
          typename ActionT,
          typename UCB_Functor,
+         typename Playout_Functor,
          size_t MAX_DEPTH>
-typename Mcts<StateT, ActionT, UCB_Functor, MAX_DEPTH>::reward_type
-Mcts<StateT, ActionT, UCB_Functor, MAX_DEPTH>::evaluate(const ActionT& action)
+void Mcts<StateT, ActionT, UCB_Functor, Playout_Functor, MAX_DEPTH>::init_counters()
+{
+  iteration_cnt = 0;
+  timer::start = std::chrono::steady_clock::now();
+}
+
+template<typename StateT,
+         typename ActionT,
+         typename UCB_Functor,
+         typename Playout_Functor,
+         size_t MAX_DEPTH>
+typename Mcts<StateT, ActionT, UCB_Functor, Playout_Functor, MAX_DEPTH>::reward_type
+Mcts<StateT, ActionT, UCB_Functor, Playout_Functor, MAX_DEPTH>::evaluate(const ActionT& action)
 {
   return m_state.evaluate(action);
 }
@@ -320,9 +352,10 @@ Mcts<StateT, ActionT, UCB_Functor, MAX_DEPTH>::evaluate(const ActionT& action)
 template<typename StateT,
          typename ActionT,
          typename UCB_Functor,
+         typename Playout_Functor,
          size_t MAX_DEPTH>
-typename Mcts<StateT, ActionT, UCB_Functor, MAX_DEPTH>::reward_type
-Mcts<StateT, ActionT, UCB_Functor, MAX_DEPTH>::evaluate_terminal()
+typename Mcts<StateT, ActionT, UCB_Functor, Playout_Functor, MAX_DEPTH>::reward_type
+Mcts<StateT, ActionT, UCB_Functor, Playout_Functor, MAX_DEPTH>::evaluate_terminal()
 {
   return m_state.evaluate_terminal();
 }

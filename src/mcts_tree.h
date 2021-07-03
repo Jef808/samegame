@@ -61,6 +61,10 @@ class MctsTree
                   m_edge_stack.begin() + m_depth,
                   update_stats(reward));
   }
+  size_t size()
+  {
+    return m_table.size();
+  }
 
  private:
   using LookupTable = typename std::unordered_map<key_type, Node>;

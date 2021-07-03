@@ -13,7 +13,6 @@
 #include <optional>
 #include <vector>
 
-
 namespace mcts {
 
 template<typename StateT,
@@ -90,25 +89,27 @@ template<typename StateT,
          typename UCB_Functor,
          size_t MAX_DEPTH>
 typename Mcts<StateT, ActionT, UCB_Functor, MAX_DEPTH>::edge_pointer
-Mcts<StateT, ActionT, UCB_Functor, MAX_DEPTH>::get_best_edge(ActionSelection method)
+Mcts<StateT, ActionT, UCB_Functor, MAX_DEPTH>::get_best_edge(
+    ActionSelection method)
 {
-  auto cmp = [&](const auto& a, const auto& b){
-      if (method == ActionSelection::by_ucb)
-      {
-          auto ucb = UCB_Func(std::move(exploration_constant), std::move(p_current_node->n_visits));
-          return ucb(a) < ucb(b);
-      }
-      if (method == ActionSelection::by_n_visits)
-          return a.n_visits < b.n_visits;
-      if (method == ActionSelection::by_avg_value)
-          return a.avg_val < b.avg_val;
-      return a.best_val < b.best_val;
+  auto cmp = [&](const auto& a, const auto& b) {
+    if (method == ActionSelection::by_ucb)
+    {
+      auto ucb = UCB_Func(std::move(exploration_constant),
+                          std::move(p_current_node->n_visits));
+      return ucb(a) < ucb(b);
+    }
+    if (method == ActionSelection::by_n_visits)
+      return a.n_visits < b.n_visits;
+    if (method == ActionSelection::by_avg_value)
+      return a.avg_val < b.avg_val;
+    return a.best_val < b.best_val;
   };
 
   return &*std::max_element(
       p_current_node->children.begin(), p_current_node->children.end(), cmp);
 }
-    
+
 template<typename StateT,
          typename ActionT,
          typename UCB_Functor,
@@ -249,7 +250,9 @@ Mcts<StateT, ActionT, UCB_Functor, MAX_DEPTH>::best_traversal(
     ActionSelection method)
 {
   if (m_state != m_root_state)
-      { return_to_root(); }
+  {
+    return_to_root();
+  }
 
   edge_pointer p_nex_edge;
   while (p_current_node->n_visits > 0 && p_current_node->children.size() > 0)
@@ -311,10 +314,9 @@ template<typename StateT,
          typename UCB_Functor,
          size_t MAX_DEPTH>
 typename Mcts<StateT, ActionT, UCB_Functor, MAX_DEPTH>::reward_type
-Mcts<StateT, ActionT, UCB_Functor, MAX_DEPTH>::evaluate(
-    const ActionT& action)
+Mcts<StateT, ActionT, UCB_Functor, MAX_DEPTH>::evaluate(const ActionT& action)
 {
-    return m_state.evaluate(action);
+  return m_state.evaluate(action);
 }
 
 template<typename StateT,
@@ -324,7 +326,7 @@ template<typename StateT,
 typename Mcts<StateT, ActionT, UCB_Functor, MAX_DEPTH>::reward_type
 Mcts<StateT, ActionT, UCB_Functor, MAX_DEPTH>::evaluate_terminal()
 {
-    return m_state.evaluate_terminal();
+  return m_state.evaluate_terminal();
 }
 
 } // namespace mcts

@@ -28,6 +28,8 @@ Key get_key(const Grid& _grid)
   {
     row_empty = true;
 
+    // TODO Do as in generate_clusters and write two loops so that same_as_right_nbh
+    // doesn't have to make a check for cell < (ROW+1)*WIDTH-1
     for (auto cell = row * WIDTH; cell < (row + 1) * WIDTH; ++cell)
     {
       if (const Color color = _grid[cell]; color != Color::Empty)
@@ -39,7 +41,7 @@ Key get_key(const Grid& _grid)
         if (terminal_status_known)
           continue;
 
-        // Otherwise, mark termin_status known as true if current cell
+        // Otherwise, mark termin_status_known as true if current cell
         // is part of a non-trivial cluster
         if (clusters::same_as_right_or_up_nbh(_grid, cell))
           terminal_status_known = true;

@@ -31,7 +31,7 @@ class State
 
   ClusterDataVec valid_actions_data() const;
   bool apply_action(const ClusterData&);
-  ClusterData apply_random_action();
+  ClusterData apply_random_action(Color = Color::Empty);
   reward_type evaluate(const ClusterData&) const;
   reward_type evaluate_terminal() const;
   bool is_terminal() const;

@@ -20,34 +20,36 @@ class Util
   Util(typename Engine::result_type seed) : gen(seed) {}
   using size_type = typename std::make_unsigned<Int_T>::type;
 
+  /**
+   * Returns a number from _min to _max (including  _max!)
+   */
   Int_T get(Int_T _min, Int_T _max)
   {
     return std::uniform_int_distribution<Int_T>(_min, _max)(gen);
   }
 
+  template<size_t N>
   auto gen_ordering(const Int_T _beg, const Int_T _end)
   {
-    const size_type n = _end - _beg;
-    std::vector<Int_T> ret(n);
-    std::iota(begin(ret), end(ret), _beg);
+    std::array<Int_T, N> ret{};
+    std::iota(ret.begin(), ret.begin() + _end-_beg, _beg);
 
-    for (auto i = 0; i < n; ++i)
+    for (int i=_beg; i<_end-_beg; ++i)
     {
-      auto j = get(i, n - 1);
+      auto j = get(i, _end-_beg-1);
       std::swap(ret[i], ret[j]);
     }
 
     return ret;
   }
 
-  void shuffle(std::vector<Int_T>& v)
+  template<size_t N>
+  void shuffle(std::array<Int_T, N>& arr, Int_T sz)
   {
-    size_type n = v.size();
-
-    for (auto i = 0; i < n; ++i)
+    for (auto i = 0; i < sz; ++i)
     {
-      auto j = get(i, n - 1);
-      std::swap(v[i], v[j]);
+      auto j = get(i, sz-1);
+      std::swap(arr[i], arr[j]);
     }
   }
 

@@ -79,9 +79,9 @@ bool State::apply_action(const ClusterData& cd)
   return !is_trivial(res);
 }
 
-ClusterData State::apply_random_action()
+ClusterData State::apply_random_action(Color target)
 {
-  ClusterData cd = clusters::apply_random_action(m_cells);
+  ClusterData cd = clusters::apply_random_action(m_cells, target);
   m_cnt_colors[to_integral(cd.color)] -= cd.size;
   return cd;
 }

@@ -55,8 +55,10 @@ ClusterData apply_action(Grid&, const Cell);
 /**
  * Same as `apply_action(Grid&, const Cell)` but a random engine
  * is used to pick the cluster at random.
+ *
+ * Optionally, specify a color for the random action to aim for.
  */
- ClusterData apply_random_action(Grid&);
+ ClusterData apply_random_action(Grid&, const Color = Color::Empty);
 
 /**
  * @Return the list of valid clusters transformed into ClusterDescriptors.

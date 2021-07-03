@@ -160,17 +160,21 @@ void view_action_sequence(std::ostream& out,
                           const std::vector<ClusterData>& actions,
                           int delay_in_ms)
 {
-  double score = 0;
-  ClusterData cd_check{};
-
   PRINT("Printing ",
         actions.size(),
-        " actions from the following starting grid\n",
+        " actions from the following starting grid:\n",
         to_string(grid));
+
+  unsigned int score = 0;
+  Grid grid_before_action{};
+  ClusterData cd_check{};
 
   for (auto it = actions.begin(); it != actions.end(); ++it)
   {
+    grid_before_action = grid;
     cd_check = clusters::apply_action(grid, it->rep);
+
+    // Verify action is valid
     if (cd_check.rep == CELL_NONE || cd_check.color == Color::Empty
         || cd_check.size < 2)
     {
@@ -185,17 +189,19 @@ void view_action_sequence(std::ostream& out,
         return;
       }
     }
-    int val = it->size - 2;
-    val = (val + std::abs(val)) / 2;
+
+    // Add up score of action
+    double val = it->size - 2.0;
+    val = (val + std::abs(val)) / 2.0;
     score += std::pow(val, 2);
 
-    PRINT(to_string(grid, it->rep),
-          "\nSCORE : ", score);
+    // Display
+    PRINT(to_string(grid_before_action, it->rep), "SCORE : ", score, '\n');
     std::this_thread::sleep_for(std::chrono::milliseconds(delay_in_ms));
   }
-  score += 1000 * (grid[CELL_BOTTOM_LEFT] == Color::Empty);
 
-  PRINT("\nFINAL SCORE : ", score);
+  score += 1000 * (grid[CELL_BOTTOM_LEFT] == Color::Empty);
+  PRINT(to_string(grid), "\nFINAL SCORE : ", score);
 }
 
 void log_action_sequence(std::ostream& out,

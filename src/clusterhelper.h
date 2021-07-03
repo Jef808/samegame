@@ -16,8 +16,6 @@ namespace clusters {
  * Read a grid from a file and populate the given Grid and
  * ColorCounter of the StateData object.
  */
- void input(std::istream&, StateData&);
-
  void input(std::istream&, Grid&, ColorCounter&);
 
 /**

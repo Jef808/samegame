@@ -150,7 +150,6 @@ template<typename StateT,
          size_t MAX_DEPTH>
 void Mcts<StateT, ActionT, UCB_Functor, MAX_DEPTH>::expand_current_node()
 {
-  ///TODO Shouldn't this be >0?
   if (p_current_node->n_visits > 0)
   {
     ++p_current_node->n_visits;
@@ -222,8 +221,7 @@ void Mcts<StateT, ActionT, UCB_Functor, MAX_DEPTH>::backpropagate()
                                          std::plus<double>(),
                                          get_value);
 
-    /// TODO Is the case there needed??
-    return total / static_cast<double>(p_current_node->children.size());
+    return total / p_current_node->children.size();
   }();
 
   m_tree.backpropagate(value_to_propagate);

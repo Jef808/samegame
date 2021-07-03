@@ -58,8 +58,6 @@ struct ClusterT
 
   auto begin() { return members.begin(); }
   auto end() { return members.end(); }
-  auto begin() const { return members.begin(); }
-  auto end() const { return members.end(); }
   auto cbegin() const { return members.begin(); }
   auto cend() const { return members.end(); }
 
@@ -130,9 +128,6 @@ class DSU
 
   constexpr void reset() { m_clusters = init; }
 
-  // NOTE: One can also keep track of all visited nodes during the search and at the end
-  // make them all point to the root (not just towards it like now).
-  // But in my case, since the algorithm is probably about to kill that cluster, I don't know if it matters much
   Index find_rep(Index ndx)
   {
     assert(ndx < N);

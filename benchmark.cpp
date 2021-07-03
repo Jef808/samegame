@@ -46,15 +46,13 @@ struct TimeCutoff_UCB_Func
   }
 };
 
-std::pair<StateData, bool> input(const std::string& filename)
+std::pair<State, bool> input(const std::string& filename)
 {
-  StateData ret{};
-
   std::ifstream _if(filename);
   if (!_if)
   {
     std::cerr << "Could not open file!";
-    return std::pair{ret, false};
+    return std::pair{State(), false};
   }
 
   std::string buf;
@@ -66,50 +64,52 @@ std::pair<StateData, bool> input(const std::string& filename)
   }
 
   std::string cut = buf.substr(n + 6);
-
   std::istringstream iss{cut};
 
+  Grid grid{};
+  ColorCounter ccolors{};
   for (int i = 0; i < 15; ++i)
   {
     std::transform(std::istream_iterator<int>(iss),
                    std::istream_iterator<int>(),
-                   ret.cells.begin() + i * 15,
-                   [](int i) { return sg::Color(i + 1); });
+                   grid.begin() + i * 15,
+                   [&ccolors](int i) { ++ccolors[i+1]; return sg::Color(i + 1); });
     iss.clear();
     iss.get();
     iss.get();
   }
+  auto ret = State(std::move(grid), std::move(ccolors));
   return std::pair{ret, true};
 }
 
 auto generate_fns(int i)
 {
   auto num = std::to_string(i);
-  return "data/test" + num + ".json";
+  return "../data/test" + num + ".json";
 }
 
-bool run_test(std::ofstream& ofs, int i)
+bool run_test(std::ofstream& ofs,
+              int i,
+              int n_iterations,
+              double expl_cst)
 {
   std::string filename = generate_fns(i + 1);
 
-  auto [sd, file_opened] = input(filename);
+  auto [state, file_opened] = input(filename);
 
-  const auto sd_backup = sd;
+  const auto state_backup = state;
 
   if (!file_opened)
   {
     return false;
   }
 
-  State state(sd.key, sd.cells, sd.cnt_colors);
-  State state_backup(state);
-
   using MctsAgent =
       Mcts<sg::State, sg::ClusterData, TimeCutoff_UCB_Func<30>, 128>;
   MctsAgent mcts(state, TimeCutoff_UCB_Func<30>{});
 
-  mcts.set_exploration_constant(1.0);
-  mcts.set_max_iterations(30000);
+  mcts.set_exploration_constant(expl_cst);
+  mcts.set_max_iterations(n_iterations);
   mcts.set_backpropagation_strategy(
       MctsAgent::BackpropagationStrategy::best_value);
 
@@ -118,14 +118,21 @@ bool run_test(std::ofstream& ofs, int i)
       mcts.best_action_sequence(MctsAgent::ActionSelection::by_n_visits);
   auto tok = now();
 
-  ofs << "Time taken for test " << i << ": " << time(tik, tok) << std::endl;
+  ofs << "Time taken for test " << i
+      << ": " << time(tik, tok) << " seconds."
+      << std::endl;
 
+  std::cout << "Time taken for test " << i
+            << ": " << time(tik, tok) << " seconds."
+            << std::endl;
   // Log the sequence found in the output file.
   state_backup.log_action_sequence(ofs, action_seq);
 
-  std::cout << "Done" << std::endl;
   return true;
 }
+
+const int n_iterations = 10000;
+const double expl_cst = 1.0;
 
 int main()
 {
@@ -136,13 +143,14 @@ int main()
     return EXIT_FAILURE;
   }
 
-  ofs << "Running with TimeCutoff_UCB_Func<30>, 30000 iterations, exploration "
-         "constant of 1.0\n\n"
+  ofs << "Running with TimeCutoff_UCB_Func<30>, "
+      << n_iterations << " iterations, "
+      << "exploration constant " << expl_cst
       << std::endl;
 
-  for (int i = 0; i < 50; ++i)
+  for (int i = 10; i < 21; ++i)
   {
-    if (!run_test(ofs, i))
+    if (!run_test(ofs, i, 10000, 1.0))
       return EXIT_FAILURE;
   }
 

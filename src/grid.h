@@ -34,16 +34,7 @@ struct Grid
   using difference_type = Array::difference_type;
   using size_type = Array::size_type;
 
-  constexpr Grid() = default;
-  Grid(const Grid& other) = default;            // : m_data{other.m_data};
-  Grid(Grid&& other) = default;                 // : m_data{std::move(other)} {}
-  Grid& operator=(const Grid& other) = default; //{ m_data = other.m_data; }
-  Grid&
-  operator=(Grid&& other) = default; // { m_data = std::move(other.m_data); }
-  ~Grid() = default;
-
   bool operator==(const Grid& other) const { return m_data == other.m_data; }
-  bool operator!=(const Grid& other) const { return m_data != other.m_data; }
   void swap(Grid& other) { std::swap(m_data, other.m_data); }
   size_type size() { return MAX_CELLS; }
   size_type max_size() { return MAX_CELLS; }
@@ -63,13 +54,14 @@ struct Grid
   const_iterator cbegin() { return m_data.cbegin(); }
   const_iterator cend() { return m_data.end(); }
 
-  mutable size_type n_empty_rows{0};
-
- private:
+private:
   Array m_data{Color::Empty};
+
+public:
+  mutable size_type n_empty_rows{0};
 };
 
-inline constexpr Grid EMPTY_GRID{};
+inline constexpr Grid EMPTY_GRID();
 
 } // namespace sg
 

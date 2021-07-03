@@ -13,7 +13,6 @@
 
 namespace sg::display {
 
-
 enum class Color_codes : int
 {
   BLACK = 30,
@@ -107,14 +106,12 @@ to_string(const Grid& grid, const Cell cell, sg::Output output_mode)
   for (int y = 0; y < HEIGHT; ++y)
   {
     if (labels)
-    {
       ss << HEIGHT - 1 - y << ((HEIGHT - 1 - y < 10) ? "  " : " ") << "| ";
-    }
+
     // Print row except last entry
     for (int x = 0; x < WIDTH - 1; ++x)
-    {
       ss << print_cell(grid, x + y * WIDTH, output_mode, cluster) << ' ';
-    }
+
     // Print last entry,
     ss << print_cell(grid, WIDTH - 1 + y * WIDTH, output_mode, cluster) << '\n';
   }
@@ -124,10 +121,7 @@ to_string(const Grid& grid, const Cell cell, sg::Output output_mode)
     ss << std::string(34, '_') << '\n' << std::string(5, ' ');
 
     for (int x : x_labels)
-    {
-
       ss << x << ((x < 10) ? " " : "");
-    }
     ss << '\n';
   }
 
@@ -169,8 +163,6 @@ void view_action_sequence(std::ostream& out,
   double score = 0;
   ClusterData cd_check{};
 
-  ///TODO Use this and take grid by const ref.
-  //State _copy(*this);
   PRINT("Printing ",
         actions.size(),
         " actions from the following starting grid\n",
@@ -178,35 +170,32 @@ void view_action_sequence(std::ostream& out,
 
   for (auto it = actions.begin(); it != actions.end(); ++it)
   {
-      PRINT(to_string(grid, it->rep));
-
-      cd_check = clusters::apply_action(grid, it->rep);
-
-      if (cd_check.rep == CELL_NONE || cd_check.color == Color::Empty || cd_check.size < 2)
+    cd_check = clusters::apply_action(grid, it->rep);
+    if (cd_check.rep == CELL_NONE || cd_check.color == Color::Empty
+        || cd_check.size < 2)
+    {
+      PRINT("\n    WARNING: Action number ",
+            std::distance(actions.begin(), it),
+            " is invalid.");
+      if (it != actions.end())
       {
-          PRINT("\n    WARNING: Action number ",
-                std::distance(actions.begin(), it),
-                " is invalid.");
-          if (it != actions.end())
-          {
-              PRINT(" Skipping the remaining ",
-                    std::distance(it, actions.end()),
-                    " actions.");
-              return;
-          }
+        PRINT(" Skipping the remaining ",
+              std::distance(it, actions.end()),
+              " actions.");
+        return;
       }
-      int val = it->size - 2;
-      val = (val + std::abs(val)) / 2;
-      score += std::pow(val, 2);
+    }
+    int val = it->size - 2;
+    val = (val + std::abs(val)) / 2;
+    score += std::pow(val, 2);
 
-      PRINT("SCORE : ", score);
-
-      std::this_thread::sleep_for(std::chrono::milliseconds(delay_in_ms));
+    PRINT(to_string(grid, it->rep),
+          "\nSCORE : ", score);
+    std::this_thread::sleep_for(std::chrono::milliseconds(delay_in_ms));
   }
-
   score += 1000 * (grid[CELL_BOTTOM_LEFT] == Color::Empty);
 
-  PRINT("FINAL SCORE : ", score);
+  PRINT("\nFINAL SCORE : ", score);
 }
 
 void log_action_sequence(std::ostream& out,
@@ -220,26 +209,25 @@ void log_action_sequence(std::ostream& out,
 
   for (auto it = actions.begin(); it != actions.end(); ++it)
   {
-      cd_check = clusters::apply_action(grid, it->rep);
+    cd_check = clusters::apply_action(grid, it->rep);
 
-      if (cd_check.rep == CELL_NONE || cd_check.color == Color::Empty || cd_check.size < 2)
+    if (cd_check.rep == CELL_NONE || cd_check.color == Color::Empty
+        || cd_check.size < 2)
+    {
+      out << "\n    WARNING: Action number "
+          << std::distance(actions.begin(), it) << " is invalid." << std::endl;
+
+      if (it != actions.end())
       {
-          out << "\n    WARNING: Action number "
-              << std::distance(actions.begin(), it)
-              << " is invalid." << std::endl;
-
-          if (it != actions.end())
-          {
-              out << " Skipping the remaining "
-                  << std::distance(it, actions.end())
-                  << " actions." << std::endl;
-              return;
-          }
+        out << " Skipping the remaining " << std::distance(it, actions.end())
+            << " actions." << std::endl;
+        return;
       }
+    }
 
-      int val = it->size - 2;
-      val = (val + std::abs(val)) / 2;
-      score += std::pow(val, 2);
+    int val = it->size - 2;
+    val = (val + std::abs(val)) / 2;
+    score += std::pow(val, 2);
   }
 
   score += 1000 * (grid[CELL_BOTTOM_LEFT] == Color::Empty);
@@ -247,5 +235,4 @@ void log_action_sequence(std::ostream& out,
   out << "    FINAL SCORE : " << score << std::endl;
 }
 
-  
 } // namespace sg::display

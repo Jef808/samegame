@@ -4,6 +4,7 @@
 #define __SAMEGAME_H_
 
 #include "types.h"
+
 #include <algorithm>
 #include <deque>
 #include <iosfwd>
@@ -22,9 +23,10 @@ class State
  public:
   using reward_type = double;
   using key_type = uint64_t;
-  using pointer_to_data = std::shared_ptr<StateData>;
 
+  State();
   explicit State(std::istream&);
+  State(Grid&&, ColorCounter&&);
   State(key_type, const Grid&, const ColorCounter&);
 
   ClusterDataVec valid_actions_data() const;
@@ -61,9 +63,12 @@ extern std::ostream& operator<<(std::ostream&,
                                 const std::pair<const State&, Cell>&);
 extern std::ostream& operator<<(std::ostream&, const std::pair<Grid&, int>&);
 extern std::ostream& operator<<(std::ostream&, const State&);
-extern std::ostream& operator<<(std::ostream&, const StateData&);
 extern std::ostream& operator<<(std::ostream&, const ClusterData&);
 
+inline bool operator==(const ClusterData& a, const ClusterData& b)
+{
+ return a.rep == b.rep && a.color == b.color && a.size == b.size;
+}
 template<typename _Index_T, _Index_T IndexNone>
 extern bool operator==(const ClusterT<_Index_T, IndexNone>& a,
                        const ClusterT<_Index_T, IndexNone>& b);

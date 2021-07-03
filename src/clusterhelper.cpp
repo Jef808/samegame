@@ -48,9 +48,7 @@ void generate_clusters(const Grid& _grid)
       if (_grid[cell] == Color::Empty)
       {
         if (found_empty_cell)
-        {
-          grid_dsu.unite(cell, empty_cell);
-        }
+         grid_dsu.unite(cell, empty_cell);
         else
         {
           empty_cell = cell;
@@ -61,14 +59,10 @@ void generate_clusters(const Grid& _grid)
       row_empty = false;
       // compare up
       if (_grid[cell] == _grid[cell - WIDTH])
-      {
         grid_dsu.unite(cell, cell - WIDTH);
-      }
       // compare right
       if (_grid[cell] == _grid[cell + 1])
-      {
         grid_dsu.unite(cell, cell + 1);
-      }
     }
     // If the last cell of the row is empty
     Cell cell = (row + 1) * WIDTH - 1;
@@ -80,15 +74,11 @@ void generate_clusters(const Grid& _grid)
         // then return.
         grid_dsu.unite(empty_cell, cell);
         for (auto e_cell = cell - WIDTH; e_cell > 0; --e_cell)
-        {
           grid_dsu.unite(e_cell, e_cell - 1);
-        }
         return;
       }
       if (found_empty_cell)
-      {
         grid_dsu.unite(cell, empty_cell);
-      }
       else
       {
         empty_cell = cell;
@@ -97,9 +87,7 @@ void generate_clusters(const Grid& _grid)
     }
     // If it is not empty, compare up
     else if (_grid[cell] == _grid[cell - WIDTH])
-    {
       grid_dsu.unite(cell, cell - WIDTH);
-    }
     --row;
   }
   // The upmost non-empty row: only compare right
@@ -109,9 +97,7 @@ void generate_clusters(const Grid& _grid)
     if (_grid[cell] == Color::Empty)
     {
       if (found_empty_cell)
-      {
         grid_dsu.unite(cell, empty_cell);
-      }
       else
       {
         empty_cell = cell;
@@ -121,9 +107,7 @@ void generate_clusters(const Grid& _grid)
     }
     //row_empty = false;
     if (_grid[cell] == _grid[cell + 1])
-    {
       grid_dsu.unite(cell, cell + 1);
-    }
   }
 }
 
@@ -142,7 +126,6 @@ void pull_cells_down(Grid& _grid)
     for (int j = 0; j < HEIGHT; ++j)
     {
       auto bottom_color = _grid[i + (HEIGHT - 1 - j) * WIDTH];
-
       if (bottom_color != Color::Empty)
       {
         new_column[new_height] = bottom_color;
@@ -151,9 +134,7 @@ void pull_cells_down(Grid& _grid)
     }
     // pop back the value (including padding with 0)
     for (int j = 0; j < HEIGHT; ++j)
-    {
       _grid[i + j * WIDTH] = new_column[HEIGHT - 1 - j];
-    }
   }
 }
 
@@ -172,9 +153,7 @@ void pull_cells_left(Grid& _grid)
     {
       // Look for empty column
       while (i < WIDTH - 1 && _grid[i + (HEIGHT - 1) * WIDTH] != Color::Empty)
-      {
         ++i;
-      }
       zero_col.push_back(i);
       ++i;
     }
@@ -192,9 +171,7 @@ void pull_cells_left(Grid& _grid)
         break;
       // Swap the non-empty column with the first empty one
       for (int j = 0; j < HEIGHT; ++j)
-      {
         std::swap(_grid[x + j * WIDTH], _grid[i + j * WIDTH]);
-      }
       zero_col.push_back(i);
       ++i;
     }
@@ -216,9 +193,7 @@ ClusterData kill_cluster(Grid& _grid, const Cell _cell)
   ClusterData cd{_cell, color, 0};
 
   if (_cell == CELL_NONE || color == Color::Empty)
-  {
     return cd;
-  }
 
   std::deque<Cell> queue{_cell};
   Cell cur = CELL_NONE;
@@ -262,9 +237,7 @@ ClusterData kill_cluster(Grid& _grid, const Cell _cell)
   }
   // If only the rep was killed (cluster of size 1), restore it
   if (cd.size == 1)
-  {
     _grid[_cell] = color;
-  }
 
   return cd;
 }
@@ -326,9 +299,7 @@ ClusterData kill_random_cluster(Grid& _grid)
       const auto [_cell, _color] = non_empty_cols[*it];
       ret = kill_cluster(_grid, _cell); //, _color);
       if (ret.size > 1)
-      {
         return ret;
-      }
     }
 
     // Reset the non-empty vector in preparation for the next row
@@ -339,43 +310,6 @@ ClusterData kill_random_cluster(Grid& _grid)
 }
 
 } // namespace
-
-///TODO Remove this
-void input(std::istream& _in, StateData& _sd)
-{
-  int _in_color{0};
-  Color _color{Color::Empty};
-  Grid& _grid = _sd.cells;
-  _grid.n_empty_rows = {0};
-
-  bool row_empty{true};
-
-  for (auto row = 0; row < HEIGHT; ++row)
-  {
-    row_empty = true;
-
-    for (auto col = 0; col < WIDTH; ++col)
-    {
-      _in >> _in_color;
-      _color = to_enum<Color>(_in_color + 1);
-      _grid[col + row * WIDTH] = _color;
-
-      // Generate the helper data at the same time
-      if (_color != Color::Empty)
-      {
-        row_empty = false;
-        //key ^= ZobristKey(col + row * WIDTH, color);
-        ++_sd.cnt_colors[to_integral(_color)];
-      }
-    }
-    // Count the number of empty rows (we're going from top to down)
-    if (row_empty)
-    {
-      ++_grid.n_empty_rows;
-    }
-  }
-  //return key;
-}
 
 void input(std::istream& _in, Grid& _grid, ColorCounter& _cnt_colors)
 {
@@ -398,15 +332,12 @@ void input(std::istream& _in, Grid& _grid, ColorCounter& _cnt_colors)
       if (_color != Color::Empty)
       {
         row_empty = false;
-        //key ^= ZobristKey(col + row * WIDTH, color);
         _cnt_colors[to_integral(_color)];
       }
     }
     // Count the number of empty rows (we're going from top to down)
     if (row_empty)
-    {
       ++_grid.n_empty_rows;
-    }
   }
 }
 
@@ -419,9 +350,7 @@ std::vector<Cluster> get_valid_clusters(const Grid& _grid)
   {
     if (auto ndx = std::distance(grid_dsu.cbegin(), it);
         _grid[ndx] != Color::Empty && it->size() > 1)
-    {
       ret.emplace_back(*it);
-    }
   }
   return ret;
 }
@@ -431,9 +360,7 @@ bool same_as_right_nbh(const Grid& _grid, const Cell _cell)
   const Color color = _grid[_cell];
   // check right if not already at the right edge of the _grid
   if (_cell % (WIDTH - 1) != 0 && _grid[_cell + 1] == color)
-  {
     return true;
-  }
   return false;
 }
 
@@ -448,14 +375,10 @@ bool same_as_right_or_up_nbh(const Grid& _grid, const Cell _cell)
   const Color color = _grid[_cell];
   // check right if not already at the right edge of the _grid
   if (_cell % (WIDTH - 1) != 0 && _grid[_cell + 1] == color)
-  {
     return true;
-  }
   // check up if not on the first row
   if (_cell > CELL_UPPER_RIGHT && _grid[_cell - WIDTH] == color)
-  {
     return true;
-  }
   return false;
 }
 
@@ -476,35 +399,25 @@ bool has_nontrivial_cluster(const Grid& _grid)
     for (auto cell = row * WIDTH; cell < (row + 1) * WIDTH - 1; ++cell)
     {
       if (_grid[cell] == Color::Empty)
-      {
         continue;
-      }
       row_empty = false;
       // compare up
       if (_grid[cell] == _grid[cell - WIDTH])
-      {
         return true;
-      }
       // compare right
       if (_grid[cell] == _grid[cell + 1])
-      {
         return true;
-      }
     }
     // If the last cell of the row is empty
     if (_grid[(row + 1) * WIDTH - 1] == Color::Empty)
     {
       if (row_empty)
-      {
         return false;
-      }
       continue;
     }
     // If not (compare up)
     if (_grid[(row + 1) * WIDTH - 1] == _grid[row * WIDTH])
-    {
       return true;
-    }
     --row;
     row_empty = true;
   }
@@ -512,11 +425,8 @@ bool has_nontrivial_cluster(const Grid& _grid)
   for (auto cell = 0; cell < CELL_UPPER_RIGHT - 1; ++cell)
   {
     if (_grid[cell] != Color::Empty && _grid[cell + 1] == _grid[cell])
-    {
       return true;
-    }
   }
-
   return true;
 }
 

@@ -33,28 +33,23 @@ Key get_key(const Grid& _grid)
       if (const Color color = _grid[cell]; color != Color::Empty)
       {
         row_empty = false;
-
         key ^= Table(cell, color);
 
         // If the terminal status of the _grid is known, continue
         if (terminal_status_known)
-        {
           continue;
-        }
-        // Otherwise keep checking for nontrivial clusters upwards and forward
+
+        // Otherwise, mark termin_status known as true if current cell
+        // is part of a non-trivial cluster
         if (clusters::same_as_right_or_up_nbh(_grid, cell))
-        {
-          // Indicate that terminal status is known
           terminal_status_known = true;
-        }
       }
     }
+    // Stop if there are no more non-empty cells upwards
     if (row_empty)
-    {
       break;
-    }
   }
-  // First row
+  // Repeat for first row but only checking the right neighbour for clusters
   for (auto cell = CELL_UPPER_LEFT; cell < CELL_UPPER_RIGHT; ++cell)
   {
     if (const Color color = _grid[cell]; color != Color::Empty)
@@ -65,15 +60,12 @@ Key get_key(const Grid& _grid)
 
       // If the terminal status of the _grid is known, continue
       if (terminal_status_known)
-      {
         continue;
-      }
+
       // Otherwise keep checking for nontrivial clusters upwards and forward
       if (clusters::same_as_right_nbh(_grid, cell))
-      {
         // Indicate that terminal status is known
         terminal_status_known = true;
-      }
     }
   }
 

@@ -33,15 +33,6 @@ auto inline constexpr N_ZOBRIST_KEYS = (MAX_CELLS + 1) * MAX_COLORS;
 typedef std::array<int, MAX_COLORS + 1> ColorCounter;
 using Cluster = ClusterT<Cell, CELL_NONE>;
 
-struct StateData
-{
-  Key key{0};
-  Grid cells{EMPTY_GRID};
-  ColorCounter cnt_colors{};
-  int ply{0};
-  int n_empty_rows{0};
-};
-
 // Cluster or Action descriptor
 struct ClusterData
 {
@@ -50,10 +41,6 @@ struct ClusterData
   size_t size{0};
 };
 using ClusterDataVec = std::vector<ClusterData>;
-inline bool operator==(const ClusterData& a, const ClusterData& b)
-{
-  return a.rep == b.rep && a.color == b.color && a.size == b.size;
-}
 enum class Output
 {
   CONSOLE,
@@ -64,28 +51,5 @@ using Action = ClusterData;
 using ActionVec = ClusterDataVec;
 
 } // namespace sg
-
-namespace mcts {
-
-auto static constexpr MAX_DEPTH = 128;
-auto static constexpr MAX_NODES = 16384;
-auto static constexpr DEFAULT_MAX_CHILDREN = 32;
-auto static constexpr DEFAULT_EXPLORATION_CST = 0.7;
-
-typedef double Reward;
-using sg::Action;
-using sg::ActionVec;
-using sg::Key;
-
-const bool propagate_minimax = false;
-
-enum GameNbPlayers
-{
-  GAME_NONE,
-  GAME_1P,
-  GAME_2P
-};
-
-} // namespace mcts
 
 #endif

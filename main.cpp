@@ -15,8 +15,12 @@ using namespace mcts;
 using namespace sg::display;
 using namespace std::literals::chrono_literals;
 
+const int time_cst = 30;
+
 /**
  * Remove the contribution from the log term after a given number of visits.
+ *
+ * NOTE This really improves the run-time and average score!
  */
 template<int N>
 struct TimeCutoff_UCB_Func
@@ -86,11 +90,11 @@ auto run_test(const State& state, int n_iterations, double expl_cst)
                          sg::ClusterData,
                          //policies::Default_UCB_Func,
                          //ColorWeighted_UCB_Func,
-                         TimeCutoff_UCB_Func<30>,
+                         TimeCutoff_UCB_Func<time_cst>,
                          128>;
   //MctsAgent mcts(_state, ColorWeighted_UCB_Func(state));
-  //MctsAgent mcts(state, policies::Default_UCB_Func{});
-  MctsAgent mcts(_state, TimeCutoff_UCB_Func<30>{});
+  //MctsAgent mcts(_state, policies::Default_UCB_Func{});
+  MctsAgent mcts(_state, TimeCutoff_UCB_Func<time_cst>{});
 
   // Configure it.
   mcts.set_exploration_constant(expl_cst);
@@ -103,6 +107,10 @@ auto run_test(const State& state, int n_iterations, double expl_cst)
       mcts.best_action_sequence(MctsAgent::ActionSelection::by_n_visits);
   return action_seq;
 }
+
+const int n_iterations = 30000;
+const double expl_cst = 1.0;
+const int timecutoff_cst = 30;
 
 int main()
 {
@@ -117,13 +125,17 @@ int main()
   State state(_if);
   _if.close();
 
-  for (int i = 0; i < 3; ++i)
+  for (int i = 0; i < 1; ++i)
   {
-    auto action_seq = run_test(state, 10000, 1.0);
+    auto action_seq = run_test(state, n_iterations, expl_cst);
 
     // Vizualize it.
     vizualize(state, action_seq);
   }
+
+  PRINT("\n Number of iterations: ", n_iterations,
+        "\nExplorations constant: ", expl_cst,
+        "\nTime cutoff constant: ", time_cst);
 
   return EXIT_SUCCESS;
 }

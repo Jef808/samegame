@@ -1,6 +1,6 @@
 // samegame.cpp
 #include "samegame.h"
-#include "types.h"
+//#include "types.h"
 
 #include <algorithm>
 #include <array>
@@ -18,6 +18,14 @@
 
 namespace sg {
 
+State::State()
+  : m_key(0), m_cells{}, m_cnt_colors{0}
+{
+}
+
+State::State(Grid&& grid, ColorCounter&& ccolors)
+  : m_key(0), m_cells(grid), m_cnt_colors(ccolors) { }
+
 State::State(std::istream& _in) : m_key(), m_cells{}, m_cnt_colors{}
 {
   clusters::input(_in, m_cells, m_cnt_colors);
@@ -28,86 +36,6 @@ State::State(key_type key, const Grid& cells, const ColorCounter& ccolors)
 {
 }
 
-// State::State(StateData& sd)
-//     : p_data(&sd)
-// {
-// }
-
-// State::State(std::istream& _in, StateData& sd)
-//     : p_data(&sd)
-// {
-//     clusters::input(_in, sd);
-//     sd.key = key();
-// }
-
-// State::State(const State& other)
-// {
-//     StateData* new_data = new StateData;
-//     *p_data = *other.p_data;
-// }
-
-// State::~State()
-// {
-//     delete p_data;
-//     p_data = nullptr;
-// }
-
-// State& State::operator=(const State& other)
-// {
-//     if (this == &other)
-//         return *this;
-//     delete p_data;
-//     *p_data = *other.p_data;
-//     return *this;
-// }
-
-// State State::clone() const
-// {
-//     State new_state(*this);
-//     return new_state;
-// }
-
-// State& State::reset(const State& other)
-// {
-//     return *this = other;
-// }
-
-// StateData State::clone_data() const
-// {
-//     StateData sd { *p_data };
-//     return sd;
-// }
-
-// StateData& State::copy_data_to(StateData& _sd) const
-// {
-//     return _sd = *p_data;
-// }
-
-// StateData& State::redirect_data_to(StateData& _sd)
-// {
-//     if (p_data == &_sd)
-//         return _sd;
-//     delete p_data;
-//     p_data = &_sd;
-//     return _sd;
-// }
-
-// StateData& State::move_data_to(StateData& _sd)
-// {
-//     _sd = std::move(*p_data);
-//     p_data = &_sd;
-//     return _sd;
-// }
-
-// void State::copy_data_from(const StateData& _sd)
-// {
-//     *p_data = _sd;
-// }
-
-// const StateData& State::data() const
-// {
-//     return *p_data;
-// }
 //****************************************** Actions methods ***************************************/
 
 ClusterDataVec State::valid_actions_data() const
@@ -205,12 +133,6 @@ std::ostream& operator<<(std::ostream& _out, const State& _state)
   return _out << display::to_string(_state.m_cells, CELL_NONE);
 }
 
-std::ostream& operator<<(std::ostream& _out, const StateData& _sd)
-{
-  return _out << display::to_string(_sd.cells, CELL_NONE)
-              << "\n    Key = " << _sd.key;
-}
-
 std::ostream& operator<<(std::ostream& _out, const ClusterData& _cd)
 {
   return _out << _cd.rep << ' ' << display::to_string(_cd.color) << ' '
@@ -229,34 +151,12 @@ State::reward_type State::evaluate(const ClusterData& action) const
   double val = action.size - 2.0;
   val = (val + std::abs(val)) / 2.0;
   return std::pow(val, 2) * 0.0025;
-
-  //return std::max(0.0, (action.size - 2.0)) * std::max(0.0, (action.size - 2.0)) / 3e02 ;
 }
+
 State::reward_type State::evaluate_terminal() const
 {
   return static_cast<reward_type>(is_empty()) * 1000.0 * 0.0025;
 }
 
-//**************************** Comparison ***********************/
-
-bool operator==(const StateData& a, const StateData& b)
-{
-  if (a.ply != b.ply)
-  {
-    return false;
-  }
-  if (a.key != 0 && b.key != 0)
-  {
-    return a.key == b.key;
-  }
-  for (int i = 0; i < MAX_CELLS; ++i)
-  {
-    if (a.cells[i] != b.cells[i])
-    {
-      return false;
-    }
-  }
-  return true;
-}
 
 } //namespace sg

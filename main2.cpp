@@ -1,6 +1,6 @@
 #include "samegame.h"
-#include "mcts_impl2/mcts.h"
-#include "mcts_impl2/policies.h"
+#include "mcts.h"
+#include "policies.h"
 
 #include <algorithm>
 #include <iomanip>
@@ -11,7 +11,7 @@
 #include "display.h"
 
 using namespace sg;
-using namespace mcts_impl2;
+using namespace mcts;
 using namespace sg::display;
 using namespace std::literals::chrono_literals;
 
@@ -47,14 +47,6 @@ struct ColorWeighted_UCB_Func {
         update_weights();
         return [&, expl_cst, n_parent_visits]<typename EdgeT>(const EdgeT& edge)
         {
-            // auto avg_val = edge.avg_val;
-            // auto weighted_avg_val = m_weights[color] * avg_val;
-            // auto log_term = expl_cst * sqrt(log(n_parent_visits) / (edge.n_visits + 1.0));
-            // auto ret = weighted_avg_val + log_term;
-            // PRINT("  avg_val       weighted_avg_val         log_term                 ucb_val\n");
-            // PRINT(" ", edge.avg_val, "              ", weighted_avg_val, "              ", log_term, "           ", ret);
-            // PRINT("Input a character to continue....");
-            // char t; std::cin >> t; std::cin.ignore();
             auto color = std::underlying_type_t<sg::Color>(edge.action.color);
             return m_weights[color] * edge.avg_val + expl_cst * sqrt(log(n_parent_visits) / (edge.n_visits + 1.0));
         };
@@ -91,12 +83,13 @@ auto run_test(const State& state, int n_iterations, double expl_cst)
     using MctsAgent = Mcts<sg::State,
                            sg::ClusterData,
                            //policies::Default_UCB_Func,
-                           ColorWeighted_UCB_Func,
-                           //TimeCutoff_UCB_Func<30>,
+                           //ColorWeighted_UCB_Func,
+                           TimeCutoff_UCB_Func<30>,
                            128>;
-    MctsAgent mcts(state, ColorWeighted_UCB_Func(state));
+    //MctsAgent mcts(_state, ColorWeighted_UCB_Func(state));
     //MctsAgent mcts(state, policies::Default_UCB_Func{});
-    //MctsAgent mcts(_state, TimeCutoff_UCB_Func<30>{});
+    MctsAgent mcts(_state, TimeCutoff_UCB_Func<30>{});
+
     // Configure it.
     mcts.set_exploration_constant(expl_cst);
     mcts.set_max_iterations(n_iterations);

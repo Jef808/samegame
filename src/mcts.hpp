@@ -1,9 +1,9 @@
 #ifndef __MCTS_HPP_
 #define __MCTS_HPP_
 
-#include "mcts_impl2/mcts.h"
-#include "mcts_impl2/mcts_tree.h"
-#include "mcts_impl2/policies.h"
+#include "mcts.h"
+#include "mcts_tree.h"
+#include "policies.h"
 
 #include <cassert>
 #include <cmath>
@@ -14,7 +14,7 @@
 #include <vector>
 
 
-namespace mcts_impl2 {
+namespace mcts {
 
 template<typename StateT,
          typename ActionT,
@@ -327,6 +327,6 @@ Mcts<StateT, ActionT, UCB_Functor, MAX_DEPTH>::evaluate_terminal()
     return m_state.evaluate_terminal();
 }
 
-} // namespace mcts_impl2
+} // namespace mcts
 
 #endif // MCTS_HPP_

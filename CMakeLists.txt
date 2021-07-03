@@ -73,14 +73,14 @@ target_link_libraries( sg_mcts sg spdlog::spdlog )
 target_include_directories( sg_mcts PUBLIC ${SRC_DIR} )
 
 # The new main
-add_executable( main2 main2.cpp ${SRC_DIR}/mcts_impl2/mcts.hpp )
+add_executable( main2 main2.cpp ${SRC_DIR}/mcts.hpp )
 target_link_libraries( main2 sg )
-target_include_directories( main2 PUBLIC ${DATA_DIR} ${SRC_DIR} ${SRC_DIR}/mcts_impl2 )
+target_include_directories( main2 PUBLIC ${DATA_DIR} ${SRC_DIR} )
 
 # Benchmark with the codingGame dataset
 add_executable( benchmark benchmark.cpp )
 target_link_libraries( benchmark sg )
-target_include_directories( benchmark PUBLIC ${DATA_DIR} ${SRC_DIR} ${SRC_DIR}/mcts_impl2 )
+target_include_directories( benchmark PUBLIC ${DATA_DIR} ${SRC_DIR} )
 
 ######################################################
 # Misc test / debug / benchmark targets              #

@@ -1,175 +1,177 @@
-// mcts.h
 #ifndef __MCTS_H_
 #define __MCTS_H_
 
-#include <unordered_map>
-#include <sstream>
-#include <iosfwd>
-#include <limits>
-//#include "samegame.h"
-#include "types.h"
-
-namespace sg { class State; }
+#include "mcts_tree.h"
+#include "policies.h"
 
 namespace mcts {
 
+template<typename StateT,
+         typename ActionT,
+         typename UCB_Functor = policies::Default_UCB_Func,
+         size_t MAX_DEPTH = 128>
+class Mcts
+{
+ public:
+  using state_type = StateT;
+  using action_type = ActionT;
+  using reward_type = typename StateT::reward_type;
+  using ActionSequence = typename std::vector<ActionT>;
+  enum class BackpropagationStrategy
+  {
+    avg_value,
+    avg_best_value,
+    best_value
+  };
+  enum class ActionSelection
+  {
+    by_ucb,
+    by_n_visits,
+    by_avg_value,
+    by_best_value
+  };
 
-const int MAX_PLY            = 128;
-const int MAX_CHILDREN       = 128;
-const int MAX_ITER           = 1500;
-const int MAX_TIME           = 10000;   // In milliseconds.
-//const int MAX_NODES        = 10000;
-const double EXPLORATION_CST = 0.04;
-const bool use_time          = false;
-const bool use_logging       = true;
+  Mcts(StateT& state, UCB_Functor ucb_func)
+    : m_state(state),
+      m_tree(state.key()),
+      p_current_node(m_tree.get_root()),
+      m_root_state(state),
+      UCB_Func(ucb_func)
+  {
+  }
 
-struct Edge;
-struct Node;
+  ActionT best_action(ActionSelection);
+  ActionSequence best_action_sequence(
+    ActionSelection = ActionSelection::by_best_value);
 
-// Used to hold some information about actions independantly of the
-// mcts tree structure. Allows sampling playouts without creating nodes.
-struct SearchData {
-  ::sg::ClusterData  cd     { ::sg::CELL_NONE, ::sg::Color::Empty, 0 };    // TODO Get rid of this. The SearchStack idea is for TEMPORARY stacks so we don't wan't to make copies for no reason
-  int                ply    {                                        };
-  Reward             reward {                                        };
-};
+  void set_exploration_constant(double c)
+    { exploration_constant = c; }
+  void set_backpropagation_strategy(BackpropagationStrategy strat)
+  { backpropagation_strategy = strat; }
+  void set_max_iterations(unsigned int n)
+    { max_iterations = n; }
 
-class Agent {
+  /** Modify the computation resources. */
 
-public:
-  //using State = sg::State;
-  using StateData = ::sg::StateData;
-  using ClusterData = ::sg::ClusterData;
+ private:
+  using Tree = MctsTree<StateT, ActionT, MAX_DEPTH>;
+  using node_type = typename Tree::Node;
+  using edge_type = typename Tree::Edge;
+  using node_pointer = typename Tree::node_pointer;
+  using edge_pointer = typename Tree::edge_pointer;
 
-  Agent(::sg::State&);
-  void init_data();
-  void init_search();
+  StateT& m_state;
+  Tree m_tree;
+  node_pointer p_current_node;
+  StateT m_root_state;
+  ActionSequence m_actions_done;
+  UCB_Functor UCB_Func;
 
-  ClusterData MCTSBestActions();
+  // Parameters
+  double exploration_constant = 0.4;
+  BackpropagationStrategy backpropagation_strategy =
+      BackpropagationStrategy::avg_value;
+  unsigned int max_iterations;
+
+  // Counters
+  unsigned int iteration_cnt = 0;
+
+  /**
+     * Run the algorithm until the `computation_resources()` returns false.
+     */
+  void run();
+
+  /**
+     * Complete a full cycle of the algorithm.
+     */
   void step();
-  void set_root();
+
+  /**
+     * Select the best edge from the current node according to the given method.
+     */
+  edge_pointer get_best_edge(ActionSelection);
+
+/**
+   * The *Selection* phase of the algorithm.
+   */
+  edge_pointer Select_next_edge();
+
+  /**
+     * Traverse the tree to the next leaf to be expanded, using the ucb criterion
+     * to select an edge at each node in the process.
+     */
+  void select_leaf();
+
+  /**
+     * Play a random actions from the current state starting at the given action, until
+     * the state is final. Repeat this process a number of times specified by the second (optional)
+     * parameter and return the pair consisting of the average reward and the best reward, respectively.
+     */
+  std::pair<reward_type, reward_type> simulate_playout(const ActionT&,
+                                                       unsigned int = 1);
+
+  /**
+     * For when the current node is a leaf, run `simulate_playout` on all the state's
+     * valid actions and populate the current node with children edges corresponding
+     * to those actions.
+     *
+     * @Note This increments the node's number of visits by 1 (and only does that when the
+     * node had been visited before but is terminal).
+     */
+  void expand_current_node();
+
+  /**
+     * After expanding the leaf node, update the statistics of all edges connecting it
+     * to the root with the results obtained from the simulated playouts, according to
+     * the set BackpropagationStrategy.
+     */
+  void backpropagate();
+
+  /**
+     * Apply the edge's action to the state and update `m_current_node`.
+     */
+  void traverse_edge(edge_pointer);
+
+  /**
+     * Resets `m_current_node` with a reference to the root node, and reset the
+     * state with the data from `m_root_state`.
+     */
+  void return_to_root();
+
+  /**
+     * Apply the edge's action to the state and change the root to be that
+     * new state.
+     *
+     * @Note The action is pushed at the back of `m_actions_done`.
+     */
+  void apply_root_action(const edge_type& edge);
+
+  /**
+     * Using the given selection method, return the best path from root to leaf according to
+     * the statistics collected thus far.
+     *
+     * @Note If the sequence reaches unvisited nodes, `best_traversal` completes it with
+     * random choices of edges.
+     */
+  ActionSequence best_traversal(ActionSelection);
+
+  /**
+     * The evaluation of the states.
+     */
+  reward_type evaluate(const ActionT&);
+
+/**
+   * Evaluation of terminal states.
+   */
+  reward_type evaluate_terminal();
+
+  /**  Return true if the agent can continue with the algorithm. */
   bool computation_resources();
-  Node* tree_policy();
-  Reward rollout_policy(Node* node);    // TODO: If the playout hits a branch that clears the grid, return it from the whole algorithm.
-  void backpropagate(Node* node, Reward r);
-  void get_pv();
-  void display_pv();
-  Reward ucb(Node* node, const Edge& edge);
-
-  Edge* best_ucb(Node* node);     // TODO : refactor into only one method taking a parameter
-  Edge* best_visits(Node* node);
-  Edge* best_avg_val(Node* node);
-  Edge* best_val_best(Node* node);
-
-  Node* current_node();
-  bool is_root(Node* root);
-  bool is_terminal(Node* node);
-  //void apply_action(Action action);
-  ClusterData apply_action_blind(Action action);
-  bool apply_action_blind(const ClusterData& cd);
-  //oid apply_action(Action action, StateData& sd);
-  ClusterData apply_action(const ClusterData& cd);
-  void undo_action();
-  void undo_action(const ClusterData& cd);
-  void init_children();
-  //Node* get_node(State&);
-  int get_ply() const;
-
-  Reward random_simulation(const ClusterData& cd, size_t n=1);
-
-  Reward evaluate_valid_action(const ClusterData& cd) const;
-  Reward evaluate_terminal() const;
-  Reward value_to_reward(double);
-  double reward_to_value(Reward);
-
-  // Use MinMax to evaluate and backpropagate when it is a 2players game.
-  //const GameNbPlayers nb_players = GAME_1P;
-
-  // Options and Debugging
-  void set_exploration_constant(double);
-  void set_max_iterations(int);
-  void print_node(std::ostream&, Node*) const;
-  void print_tree(std::ostream&, int depth) const;
-  void reset();
-
-  friend std::ostream& operator<<(std::ostream&, const Agent&);
-  static std::string debug_tree_stats(const Agent&);
-  static std::string debug_edge_stats(const Edge&);
-  static std::string debug_node_stats(const Node&);
-  void print_final_score() const;
-  bool debug_tree_policy  = false;
-  double get_exploration_cst() const;
-
-  // Data
-  sg::State& state;
-  Node* root;
-  // To keep track of the data during the search (indexed by ply)
-  std::array<Node*, MAX_PLY>         nodes;       // Elements are stored in the MCTSLookupTable
-  std::array<Edge*, MAX_PLY>         actions;     // Elements are stored in their parent node
-  std::array<StateData, MAX_PLY>     states;      // To keep history of states along a branch (stored on the heap)
-  std::array<SearchData, MAX_PLY>    stack;       // To perform the playout samplings without creating new nodes
-    // Counters for bookkeeping
-  int cnt_iterations;
-  int cnt_simulations;
-  int cnt_descent;
-  int cnt_explored_nodes;
-  int cnt_rollout;
-  int cnt_new_nodes;
-  // Tree statistics
-  double value_global_max;
-  double value_global_min;
-  double value_global_avg;
-  int    global_max_depth;
-
-private:
-  int    ply             = 1;
-  double exploration_cst = EXPLORATION_CST;
-  int    max_iterations  = MAX_ITER;
 };
-
-struct Edge {
-  ::sg::ClusterData  cd { ::sg::CELL_NONE, ::sg::Color::Empty, 0 };
-  int              sg_value_from_root { 0 };
-  int              val_best { 0 };
-  Reward           reward_avg_visit { 0 };
-  int              n_visits { 0 };
-  friend std::ostream& operator<<(std::ostream&, const Edge&);
-};
-
-struct Node {
-  using Edges = std::vector<Edge>;
-  Key              key { 0 };
-  int              n_visits { 0 };
-  int              n_children { 0 };
-  Edges            children { {} };
-
-  Edges& children_list() { return children; }
-  friend std::ostream& operator<<(std::ostream&, const Node&);
-};
-
-inline bool operator==(const Edge& a, const Edge& b) {
-  return a.cd.rep == b.cd.rep;
-}
-inline bool operator==(const Node& a, const Node& b) {
-  return a.key == b.key;
-}
-
-extern std::ostream& operator<<(std::ostream&, const Agent&);
-extern std::ostream& operator<<(std::ostream&, const Edge&);
-extern std::ostream& operator<<(std::ostream&, const Node&);
-
-typedef std::unordered_map<Key, Node> MCTSLookupTable;
-
-extern MCTSLookupTable MCTS;
 
 
 } // namespace mcts
 
-// TODO: Only expose manipulation of `StateDescriptor` objects in the mcts interface.
-// Then instead of comparing keys explicitely, (re)define operator== and apply_action etc...
-// so that operations on StateDescriptor objects is simple and uniform.
-//
-// TODO: get_node and tree navigation etc... Nodes and Edges... should be in its own
-// templated class exposing a nice interface
+#include "mcts.hpp"
 
-#endif // __MCTS_H_
+#endif

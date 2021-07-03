@@ -4,7 +4,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace mcts_impl2 {
+namespace mcts {
 
 template<typename StateT, typename ActionT, size_t MAX_DEPTH>
 class MctsTree
@@ -85,6 +85,6 @@ class MctsTree
   };
 };
 
-} // namespace mcts_impl2
+} // namespace mcts
 
 #endif

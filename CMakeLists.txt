@@ -13,14 +13,14 @@ set(CMAKE_CXX_STANDARD_REQUIRED 20)
 #set(CMAKE_BUILD_TYPE debug)
 set(CMAKE_BUILD_TYPE Release)
 
-add_compile_definitions("g")
+set( SG_BUILD_TESTS off )
 
 ####################################################
 # Third party libraries                            #
 ####################################################
 include( FetchContent )
 
-option( WITH_GTEST "Build with GoogleTest" OFF )
+option( WITH_GTEST "Build with GoogleTest" ${SG_BUILD_TESTS} )
 option( WITH_SPDLOG "Build with SpdLog" OFF )
 
 FetchContent_Declare(
@@ -34,8 +34,8 @@ FetchContent_Declare(
   GIT_TAG        v1.x
   )
 FetchContent_MakeAvailable( googletest )
-#FetchContent_MakeAvailable( spdlog )
 FetchContent_GetProperties( spdlog )
+
 if ( NOT spdlog_POPULATED )
   FetchContent_Populate( spdlog )
   add_subdirectory( ${spdlog_SOURCE_DIR} ${spdlog_BINARY_DIR} )
@@ -53,12 +53,6 @@ set( sg_SOURCES
   ${SRC_DIR}/sghash.cpp
   ${SRC_DIR}/display.cpp
   )
-set( mcts_SOURCES
-  ${SRC_DIR}/mcts.cpp
-  )
-set( mctstree_SOURCES
-  ${SRC_DIR}/mctstree.cpp
-  )
 
 ######################################################
 # Main project targets                               #
@@ -67,15 +61,10 @@ set( mctstree_SOURCES
 add_library( sg STATIC ${sg_SOURCES} )
 target_include_directories( sg PUBLIC ${SRC_DIR} )
 
-# The MCTS algorithm running on samegame
-add_library( sg_mcts STATIC ${mcts_SOURCES} )
-target_link_libraries( sg_mcts sg spdlog::spdlog )
-target_include_directories( sg_mcts PUBLIC ${SRC_DIR} )
-
 # The new main
-add_executable( main2 main2.cpp ${SRC_DIR}/mcts.hpp )
-target_link_libraries( main2 sg )
-target_include_directories( main2 PUBLIC ${DATA_DIR} ${SRC_DIR} )
+add_executable( main main.cpp ${SRC_DIR}/mcts.hpp )
+target_link_libraries( main sg )
+target_include_directories( main PUBLIC ${DATA_DIR} ${SRC_DIR} )
 
 # Benchmark with the codingGame dataset
 add_executable( benchmark benchmark.cpp )
@@ -96,25 +85,9 @@ target_link_libraries(display_clusters sg spdlog::spdlog)
 target_include_directories(display_clusters PRIVATE ${DATA_DIR})
 
 # Admire fast random simulations in the console
-add_executable(test_random_simulation_toconsole tests/test_random_simulation_toconsole.cpp)
-target_link_libraries(test_random_simulation_toconsole sg_mcts spdlog::spdlog)
-target_include_directories(test_random_simulation_toconsole PRIVATE ${DATA_DIR})
-
-# Same as above but for fast executions with logs only.
-add_executable(test_random_simulation_tologs tests/test_random_simulation_tologs.cpp)
-target_link_libraries(test_random_simulation_tologs sg_mcts spdlog::spdlog)
-target_include_directories(test_random_simulation_tologs PRIVATE ${DATA_DIR})
-
-# Test / debug the main line taken by the mcts algorithm
-add_executable(test_pv tests/test_pv.cpp)
-target_link_libraries(test_pv PRIVATE sg_mcts spdlog::spdlog)
-target_include_directories(test_pv PRIVATE ${DATA_DIR})
-
-# Basic tree generation
-# add_executable(test_init_children tests/test_init_children.cpp)
-# target_link_libraries(test_init_children PRIVATE sg_mcts spdlog::spdlog)
-# target_include_directories(test_init_children PUBLIC ${SRC_DIR} ${DATA_DIR})
-
+add_executable( test_random_simulation_toconsole tests/test_random_simulation_toconsole.cpp )
+target_link_libraries( test_random_simulation_toconsole sg )
+target_include_directories( test_random_simulation_toconsole PRIVATE ${DATA_DIR} )
 
 #################################################################################
 # Custom targets for project filesystem hygiene                                 #
@@ -124,47 +97,35 @@ add_custom_target(log_clean rm ${PROJECT_SOURCE_DIR}/build/logs -r)
 #################################################################################
 # Automated tests                                                               #
 #################################################################################
+if ( ${SG_BUILD_TESTS} )
+  set( TEST_DIR ${SRC_DIR}/tests )
 
-set( TEST_DIR ${SRC_DIR}/tests )
+  enable_testing()
 
-enable_testing()
+  # The random utilities used throughout
+  add_executable(
+    randutil_tests
+    ${TEST_DIR}/randutil_tests.cc
+    )
 
-# The random utilities used throughout
-add_executable(
-  randutil_tests
-  ${TEST_DIR}/randutil_tests.cc
-  )
+  # The samegame implementation test files
+  set( sg_tests_SOURCES
+    ${TEST_DIR}/samegame_tests.cc
+    ${TEST_DIR}/dsu_tests.cc
+    ${TEST_DIR}/zobrist_tests.cc
+    )
 
-# The samegame implementation test files
-set( sg_tests_SOURCES
-  ${TEST_DIR}/samegame_tests.cc
-  ${TEST_DIR}/dsu_tests.cc
-  ${TEST_DIR}/zobrist_tests.cc
-  )
-add_executable(
-  sg_tests
-  ${sg_tests_SOURCES}
-  )
+  add_executable(
+    sg_tests
+    ${sg_tests_SOURCES}
+    )
 
-# The mcts implementation test files
-set( mcts_tests_SOURCES
-  ${TEST_DIR}/mcts_tests.cc
-  )
-add_executable(
-  mcts_tests
-  ${mcts_tests_SOURCES}
-  )
-add_executable(
-  mctstree_tests ${TEST_DIR}/mctstree_tests.cc ${mctstree_SOURCES}
-  )
+  # Linking directives for the automatic tests.
+  target_link_libraries( randutil_tests gtest_main spdlog::spdlog )
+  target_include_directories( randutil_tests PRIVATE ${SRC_DIR} )
+  target_link_libraries( sg_tests sg gtest_main spdlog::spdlog )
+  #target_link_libraries( mcts_tests gtest_main spdlog::spdlog )
 
-# Linking directives for the automatic tests.
-target_link_libraries( randutil_tests gtest_main spdlog::spdlog )
-target_include_directories( randutil_tests PRIVATE ${SRC_DIR} )
-target_link_libraries( sg_tests sg gtest_main spdlog::spdlog )
-target_link_libraries( mcts_tests sg_mcts gtest_main spdlog::spdlog )
-target_link_libraries( mctstree_tests gtest_main spdlog::spdlog )
-target_include_directories( mctstree_tests PUBLIC ${SRC_DIR} )
-
-include( GoogleTest )
-gtest_discover_tests( sg_tests mcts_tests mctstree_tests )
+  include( GoogleTest )
+  gtest_discover_tests( sg_tests )
+endif()

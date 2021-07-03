@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.14)
+  cmake_minimum_required(VERSION 3.14)
 
 project( SameGame VERSION 1.0 LANGUAGES CXX )
 
@@ -10,16 +10,18 @@ set(CMAKE_VERBOSE_MAKEFILE on)
 #set(CMAKE_CXX_COMPILER /usr/bin/g++)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED 20)
-#set(CMAKE_BUILD_TYPE Debug)
-#set(CMAKE_BUILD_TYPE Release)
+#set(CMAKE_BUILD_TYPE debug)
+set(CMAKE_BUILD_TYPE Release)
+
+add_compile_definitions("g")
 
 ####################################################
 # Third party libraries                            #
 ####################################################
 include( FetchContent )
 
-option( WITH_GTEST "Build with GoogleTest" ON )
-option( WITH_SPDLOG "Build with SpdLog" ON )
+option( WITH_GTEST "Build with GoogleTest" OFF )
+option( WITH_SPDLOG "Build with SpdLog" OFF )
 
 FetchContent_Declare(
   googletest
@@ -69,6 +71,16 @@ target_include_directories( sg PUBLIC ${SRC_DIR} )
 add_library( sg_mcts STATIC ${mcts_SOURCES} )
 target_link_libraries( sg_mcts sg spdlog::spdlog )
 target_include_directories( sg_mcts PUBLIC ${SRC_DIR} )
+
+# The new main
+add_executable( main2 main2.cpp ${SRC_DIR}/mcts_impl2/mcts.hpp )
+target_link_libraries( main2 sg )
+target_include_directories( main2 PUBLIC ${DATA_DIR} ${SRC_DIR} ${SRC_DIR}/mcts_impl2 )
+
+# Benchmark with the codingGame dataset
+add_executable( benchmark benchmark.cpp )
+target_link_libraries( benchmark sg )
+target_include_directories( benchmark PUBLIC ${DATA_DIR} ${SRC_DIR} ${SRC_DIR}/mcts_impl2 )
 
 ######################################################
 # Misc test / debug / benchmark targets              #

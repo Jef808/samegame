@@ -91,12 +91,12 @@ auto run_test(const State& state, int n_iterations, double expl_cst)
     using MctsAgent = Mcts<sg::State,
                            sg::ClusterData,
                            //policies::Default_UCB_Func,
-                           //ColorWeighted_UCB_Func,
-                           TimeCutoff_UCB_Func<30>,
+                           ColorWeighted_UCB_Func,
+                           //TimeCutoff_UCB_Func<30>,
                            128>;
-    //MctsAgent mcts(state, ColorWeighted_UCB_Func(state));
+    MctsAgent mcts(state, ColorWeighted_UCB_Func(state));
     //MctsAgent mcts(state, policies::Default_UCB_Func{});
-    MctsAgent mcts(_state, TimeCutoff_UCB_Func<30>{});
+    //MctsAgent mcts(_state, TimeCutoff_UCB_Func<30>{});
     // Configure it.
     mcts.set_exploration_constant(expl_cst);
     mcts.set_max_iterations(n_iterations);
@@ -121,9 +121,9 @@ int main()
     State state(_if);
     _if.close();
 
-    for (int i=0; i<10; ++i)
+    for (int i=0; i<3; ++i)
     {
-        auto action_seq = run_test(state, 20000, 1.0);
+        auto action_seq = run_test(state, 10000, 1.0);
 
         // Vizualize it.
         vizualize(state, action_seq);

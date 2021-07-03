@@ -172,6 +172,9 @@ void pull_cells_left(Grid& _grid)
     }
 }
 
+/// NOTE A significant (at least 10% of the program's execution) is spent on
+/// the deque constructor!
+/// This implementation is absolutely not that critical!
 /**
  * Empty the cells of the cluster to which the given cell belongs, if
  * that cluster is valid.
@@ -230,6 +233,8 @@ ClusterData kill_cluster(Grid& _grid, const Cell _cell)
     return cd;
 }
 
+/// NOTE This is by far the hot spot in execution! (92% is spent here
+/// according to callgrind).
 /**
  * Kill a random cluster
  *

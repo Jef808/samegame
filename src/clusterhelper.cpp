@@ -45,79 +45,45 @@ void generate_clusters(const Grid& _grid)
     // Iterate through all columns except last
     for (auto cell = row * WIDTH; cell < (row + 1) * WIDTH - 1; ++cell)
     {
-      // if (_grid[cell] == Color::Empty)
-      // {
-      //   if (found_empty_cell)
-      //    grid_dsu.unite(cell, empty_cell);
-      //   else
-      //   {
-      //     empty_cell = cell;
-      //     found_empty_cell = true;
-      //   }
-      //   continue;
-      // }
-      row_empty = false;
+      if (_grid[cell] == Color::Empty)
+        continue;
+
       // compare up
       if (_grid[cell] == _grid[cell - WIDTH])
         grid_dsu.unite(cell, cell - WIDTH);
+
       // compare right
       if (_grid[cell] == _grid[cell + 1])
         grid_dsu.unite(cell, cell + 1);
     }
-    // If the last cell of the row is empty
-    Cell cell = (row + 1) * WIDTH - 1;
-    // if (_grid[cell] == Color::Empty)
-    // {
-    //   if (row_empty)
-    //   {
-    //     // Unite all the (empty) cells above with the `empty_cell` cell,
-    //     // then return.
-    //     grid_dsu.unite(empty_cell, cell);
-    //     for (auto e_cell = cell - WIDTH; e_cell > 0; --e_cell)
-    //       grid_dsu.unite(e_cell, e_cell - 1);
-    //     _grid.n_empty_rows = row;
-    //     return;
-    //   }
-    //   if (found_empty_cell)
-    //     grid_dsu.unite(cell, empty_cell);
-    //   else
-    //   {
-    //     empty_cell = cell;
-    //     found_empty_cell = true;
-    //   }
-    // }
-    // If it is not empty, compare up
-    //
+    Cell _cell = (row + 1) * WIDTH - 1;
     // Last column
-    if (_grid[cell] == _grid[cell - WIDTH])
-      grid_dsu.unite(cell, cell - WIDTH);
-
-    // return if that was the last non-empty row.
-    else if (row_empty)
+    // If the row was empty, we are done.
+    if (row_empty = row_empty && _grid[_cell] == Color::Empty)
+    {
+      _grid.n_empty_rows = row;
       return;
-
-    // Switch to row above
+    }
+    // Compare up
+    if (_grid[_cell] == _grid[_cell - WIDTH])
+    {
+      grid_dsu.unite(_cell, _cell - WIDTH);
+    }
     --row;
   }
+
+  row_empty = true;
   // The upmost non-empty row: only compare right
   for (auto cell = 0; cell < CELL_UPPER_RIGHT - 1; ++cell)
   {
-    //row_empty = true;
     if (_grid[cell] == Color::Empty)
-    // {
-    //   if (found_empty_cell)
-    //     grid_dsu.unite(cell, empty_cell);
-    //   else
-    //   {
-    //     empty_cell = cell;
-    //     found_empty_cell = true;
-    //   }
-    //   continue;
-    // }
-    //row_empty = false;
+      continue;
+
     if (_grid[cell] == _grid[cell + 1])
       grid_dsu.unite(cell, cell + 1);
   }
+  if (row_empty = row_empty && _grid[CELL_UPPER_RIGHT] == Color::Empty)
+    ++_grid.n_empty_rows;
 }
 
 /**
@@ -187,9 +153,6 @@ void pull_cells_left(Grid& _grid)
   }
 }
 
-/// NOTE A significant (at least 10% of the program's execution) is spent on
-/// the deque constructor!
-/// This implementation is absolutely not that critical!
 /**
  * Empty the cells of the cluster to which the given cell belongs, if
  * that cluster is valid.
@@ -197,70 +160,6 @@ void pull_cells_left(Grid& _grid)
  * @Return The cluster descriptor of the given cell.
  */
 ClusterData kill_cluster(Grid& _grid, const Cell _cell)
-{
-  const Color color = _grid[_cell];
-  ClusterData cd{_cell, color, 0};
-
-  if (_cell == CELL_NONE || color == Color::Empty)
-    return cd;
-
-  int ndx_back = 1;
-  Cell _cur = CELL_NONE;
-
-  std::deque<Cell> queue{_cell};
-  Cell cur = CELL_NONE;
-
-  _grid[_cell] = Color::Empty;
-  ++cd.size;
-
-  while (!queue.empty())
-  {
-    cur = queue.back();
-    queue.pop_back();
-    // We remove the cells adjacent to `cur` with the target color
-    // Look right
-    if (cur % WIDTH < WIDTH - 1 && _grid[cur + 1] == color)
-    {
-      queue.push_back(cur + 1);
-      _grid[cur + 1] = Color::Empty;
-      ++cd.size;
-    }
-    // Look down
-    if (cur < (HEIGHT - 1) * WIDTH && _grid[cur + WIDTH] == color)
-    {
-      queue.push_back(cur + WIDTH);
-      _grid[cur + WIDTH] = Color::Empty;
-      ++cd.size;
-    }
-    // Look left
-    if (cur % WIDTH > 0 && _grid[cur - 1] == color)
-    {
-      queue.push_back(cur - 1);
-      _grid[cur - 1] = Color::Empty;
-      ++cd.size;
-    }
-    // Look up
-    if (cur > WIDTH - 1 && _grid[cur - WIDTH] == color)
-    {
-      queue.push_back(cur - WIDTH);
-      _grid[cur - WIDTH] = Color::Empty;
-      ++cd.size;
-    }
-  }
-  // If only the rep was killed (cluster of size 1), restore it
-  if (cd.size == 1)
-    _grid[_cell] = color;
-
-  return cd;
-}
-
-/**
- * Empty the cells of the cluster to which the given cell belongs, if
- * that cluster is valid.
- *
- * @Return The cluster descriptor of the given cell.
- */
-ClusterData _kill_cluster(Grid& _grid, const Cell _cell)
 {
   const Color color = _grid[_cell];
   ClusterData cd{_cell, color, 0};
@@ -322,7 +221,6 @@ ClusterData _kill_cluster(Grid& _grid, const Cell _cell)
 }
 
 /// NOTE This is by far the hot spot in execution! (92% is spent here
-/// according to callgrind).
 /**
  * Kill a random cluster
  *
@@ -338,9 +236,6 @@ ClusterData kill_random_cluster(Grid& _grid, const Color target_color = Color::E
 
   // Array to hold the non-empty cells found.
   std::array<Cell, WIDTH> non_empty{};
-
-  // // Array to hold the cells of the target color in the row.
-  // std::array<Cell, WIDTH> target_color{};
 
   // Because n_empty_rows might get updated during the loop!
   const int len_rows = HEIGHT - _grid.n_empty_rows;
@@ -377,14 +272,14 @@ ClusterData kill_random_cluster(Grid& _grid, const Color target_color = Color::E
     for (auto it = non_empty.begin(); it != non_empty.begin() + nonempty_ndx; ++it)
     {
       if (_grid[*it] == target_color)
-        ret = _kill_cluster(_grid, *it);
+        ret = kill_cluster(_grid, *it);
       if (ret.size > 1)
         return ret;
     }
     for (auto it = non_empty.begin(); it != non_empty.begin() + nonempty_ndx; ++it)
     {
       if (_grid[*it] != target_color)
-        ret = _kill_cluster(_grid, *it);
+        ret = kill_cluster(_grid, *it);
       if (ret.size > 1)
         return ret;
     }
@@ -621,7 +516,7 @@ std::vector<ClusterData> get_valid_clusters_descriptors(const Grid& _grid)
 
 ClusterData apply_action(Grid& _grid, const Cell _cell)
 {
-  ClusterData cd_ret = _kill_cluster(_grid, _cell);
+  ClusterData cd_ret = kill_cluster(_grid, _cell);
   if (cd_ret.size > 1)
   {
     pull_cells_down(_grid);

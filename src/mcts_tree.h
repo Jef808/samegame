@@ -28,6 +28,7 @@ class MctsTree
     reward_type avg_val;
     reward_type best_val;
     int n_visits;
+    bool subtree_completed;
   };
 
   MctsTree(key_type key)

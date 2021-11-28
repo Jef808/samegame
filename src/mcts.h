@@ -1,3 +1,13 @@
+// As things are, StateT has to implement the following methods:
+//
+// - is_trivial(const ActionT& action) determining if an action is trivial.
+// - evaluate(const ActionT& action)
+// - evaluate_terminal()
+// - valid_actions_data() returning a vector containing all valid actions
+// - apply_random_action()
+// - apply_action(const ActionT& action)
+// - key()
+
 #ifndef __MCTS_H_
 #define __MCTS_H_
 

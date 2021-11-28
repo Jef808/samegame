@@ -53,7 +53,6 @@ struct TimeCutoff_UCB_Func
  */
 struct ColorWeighted_UCB_Func
 {
-
   ColorWeighted_UCB_Func(const sg::State& _state) : r_state(_state) {}
 
   auto operator()(double expl_cst, unsigned int n_parent_visits)
@@ -101,6 +100,24 @@ struct SmallColor_Playout_Func
 
   State& state;
 };
+
+// /**
+//  * Searches all the subtree when the number of valid actions is small enough
+//  */
+// struct Complete_Ends_Playout_Func
+// {
+//   Complete_Ends_Playout_Func(State& _state)
+//     : state(_state)
+//   {
+//   }
+
+//   ClusterData operator()()
+//   {
+//     auto actions = state.valid_actions_data();
+//   }
+
+//   State& state;
+// };
 
 
 /** Vizualize an action sequence in the console. */

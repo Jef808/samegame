@@ -23,7 +23,7 @@ Rand::Util<Cell> rand_util{};
 
 //************************************** Grid manipulations **********************************/
 
-///TODO Remove the 'empty cells' stuff, or do something with it
+///TODO Remove the 'empty cel ls' stuff, or do something with it
 /**
  * Populate the disjoint data structure grid_dsu with all adjacent clusters
  * of cells sharing a same color.

@@ -10,6 +10,7 @@
 #include <functional>
 #include <iostream>
 #include <numeric>
+#include <thread>
 #include <vector>
 
 namespace mcts {
@@ -46,7 +47,7 @@ template<typename StateT,
          typename Playout_Functor,
          size_t MAX_DEPTH>
 typename Mcts<StateT, ActionT, UCB_Functor, Playout_Functor, MAX_DEPTH>::ActionSequence
-Mcts<StateT, ActionT, UCB_Functor, Playout_Functor, MAX_DEPTH>::best_action_sequence(
+inline Mcts<StateT, ActionT, UCB_Functor, Playout_Functor, MAX_DEPTH>::best_action_sequence(
     ActionSelection method)
 {
   run();
@@ -168,29 +169,19 @@ void Mcts<StateT, ActionT, UCB_Functor, Playout_Functor, MAX_DEPTH>::expand_curr
     return;
   }
 
-  // auto init_child = [&](const auto& action) {
-  //     edge_type new_edge { .action = action, };
-  //     auto [avg_val, best_val] = simulate_playout(action);
-  //     new_edge.avg_val = avg_val;
-  //     new_edge.best_val = best_val;
-  //     return new_edge;
-  // };
   auto valid_actions = m_state.valid_actions_data();
 
   for (auto a : valid_actions)
-  {
-    edge_type new_edge{
-        .action = a,
-    };
-    auto best_val = simulate_playout(a);
-    new_edge.avg_val = new_edge.best_val = best_val;
-    p_current_node->children.push_back(new_edge);
-  }
+    {
+      edge_type new_edge{
+         .action = a,
+       };
+      auto best_val = simulate_playout(a);
+      new_edge.avg_val = new_edge.best_val = best_val;
+      p_current_node->children.push_back(new_edge);
+    }
 
   ++p_current_node->n_visits;
-
-  // std::transform(valid_actions.begin(), valid_actions.end(),
-  //                std::back_inserter(p_current_node->children), init_child);
 }
 
 template<typename StateT,
@@ -294,7 +285,7 @@ template<typename StateT,
          typename UCB_Functor,
          typename Playout_Functor,
          size_t MAX_DEPTH>
-void Mcts<StateT, ActionT, UCB_Functor, Playout_Functor, MAX_DEPTH>::return_to_root()
+inline void Mcts<StateT, ActionT, UCB_Functor, Playout_Functor, MAX_DEPTH>::return_to_root()
 {
   p_current_node = m_tree.get_root();
   m_state = m_root_state;
@@ -344,7 +335,7 @@ template<typename StateT,
          typename Playout_Functor,
          size_t MAX_DEPTH>
 typename Mcts<StateT, ActionT, UCB_Functor, Playout_Functor, MAX_DEPTH>::reward_type
-Mcts<StateT, ActionT, UCB_Functor, Playout_Functor, MAX_DEPTH>::evaluate(const ActionT& action)
+inline Mcts<StateT, ActionT, UCB_Functor, Playout_Functor, MAX_DEPTH>::evaluate(const ActionT& action)
 {
   return m_state.evaluate(action);
 }
@@ -355,7 +346,7 @@ template<typename StateT,
          typename Playout_Functor,
          size_t MAX_DEPTH>
 typename Mcts<StateT, ActionT, UCB_Functor, Playout_Functor, MAX_DEPTH>::reward_type
-Mcts<StateT, ActionT, UCB_Functor, Playout_Functor, MAX_DEPTH>::evaluate_terminal()
+inline Mcts<StateT, ActionT, UCB_Functor, Playout_Functor, MAX_DEPTH>::evaluate_terminal()
 {
   return m_state.evaluate_terminal();
 }

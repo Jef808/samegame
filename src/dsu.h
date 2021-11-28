@@ -5,11 +5,9 @@
 #include <cassert>
 #include <iosfwd>
 #include <iostream>
-#include <numeric>
 #include <memory>
-#include <sstream>
+#include <numeric>
 #include <type_traits>
-#include <utility>
 #include <vector>
 
 // Forward declare a template struct
@@ -130,15 +128,12 @@ class DSU
 
   Index find_rep(Index ndx)
   {
-    assert(ndx < N);
-
     bool not_the_rep = m_clusters[ndx].rep != ndx;
 
     if (not_the_rep)
     {
       return m_clusters[ndx].rep = find_rep(m_clusters[ndx].rep);
     }
-
     return ndx;
   }
 
